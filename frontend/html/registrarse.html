@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title> Inscripción </title>
+<link rel="icon" href="../assets/RuleMind.png" type="image/x-icon">
+<link rel="stylesheet" href="../css/estilos.css" />
+</head>
+<body>
+<main class="container">
+    <header class="logo-area">
+    <!-- Si tienes un logo: pon assets/logo.png -->
+    <img src="../assets/RuleMind.png" alt="RuleMind" class="logo" onerror="this.style.display='none'"/>
+    </div>
+    </header>
+
+    <h1 class="title"> Inscripción </h1>
+
+    <form id="signupForm" class="card" novalidate>
+        <label class="field">
+        <span class="sr-only"> Nombre </span>
+        <input id="nombre" name="nombre" type="text" placeholder=" Nombre " required />
+    </label>
+
+    <form id="signupForm" class="card" novalidate>
+        <label class="field">
+        <span class="sr-only"> Apellido </span>
+        <input id="apellido" name="apellido" type="text" placeholder=" Apellido " required />
+    </label>
+
+    <label class="field">
+        <span class="sr-only">Correo electrónico</span>
+        <input id="email" name="email" type="email" placeholder="Correo Electronico" required />
+    </label>
+
+    <label class="field">
+        <span class="sr-only">Contraseña</span>
+        <input id="password" name="password" type="password" placeholder="Contraseña" minlength="8" required />
+    </label>
+
+    <label class="field">
+        <span class="sr-only">Repetir Contraseña</span>
+        <input id="repassword" name="repassword" type="password" placeholder=" Repetir Contraseña" minlength="8" required />
+    </label>
+
+    <div class="verify-row">
+        <button type="button" id="verifyBtn" class="btn-verify" title="Verificación por mail">
+        <svg class="mail-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="white"
+            strokSe-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6M21 7v10a2 
+            2 0 0 1-2 2H5a2 2 0 0 1-2-2V7"/></svg>
+        Verificacion por mail
+        </button>
+    </div>
+
+    <div class="submit-row">
+        <button type="submit" id="registerBtn" class="btn-register">Registrarse</button>
+    </div>
+    </form>
+    <p class="login-link">
+    ¿Ya tienes cuenta?
+    <a href="../html/loguearse.html">Iniciar Sesion aquí</a>
+    </p>
+</main>
+
+<!-- Toast / modal simple -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="../js/script_de_registro.js"></script>
+</body>
+</html>

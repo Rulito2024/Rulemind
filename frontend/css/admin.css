@@ -1,0 +1,183 @@
+/* ==========================
+   ADMIN PANEL STYLES
+   ========================== */
+
+.panel-wrapper {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+/* Título principal */
+.main-title {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.2rem;
+    color: #ffffff;
+}
+
+/* Grid general */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+/* Cards */
+.card {
+    background-color: #1f1f1f;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+}
+
+.card h2 {
+    margin-bottom: 15px;
+    color: #00aaff;
+    font-size: 1.3rem;
+}
+
+/* Texto general */
+.card p {
+    color: #d0d0d0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* ==========================
+   FORMULARIOS
+   ========================== */
+
+.card form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.card label {
+    font-size: 0.9rem;
+    color: #bbbbbb;
+}
+
+.card input,
+.card textarea,
+.card select {
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background-color: #2c2c2c;
+    color: #ffffff;
+    font-size: 0.95rem;
+}
+
+.card textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.card input:focus,
+.card textarea:focus,
+.card select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #00aaff66;
+}
+
+/* Botones */
+.card button {
+    margin-top: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background-color: #00aaff;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.card button:hover {
+    background-color: #0090dd;
+    transform: scale(1.02);
+}
+
+/* ==========================
+   TABLAS (si luego agregás gestión de usuarios)
+   ========================== */
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.users-table th,
+.users-table td {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+    text-align: center;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.users-table th {
+    color: #00aaff;
+    font-weight: bold;
+}
+
+/* ==========================
+   CONTENEDORES ESPECIALES
+   ========================== */
+
+#adminData {
+    padding: 10px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    color: #ddd;
+}
+
+/* ==========================
+   LOGOUT
+   ========================== */
+
+.logout-container {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.logout-container button {
+    padding: 12px 25px;
+    border-radius: 25px;
+    border: none;
+    background-color: #ff4d4d;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.logout-container button:hover {
+    background-color: #e63e3e;
+}
+
+/* ==========================
+   TOAST
+   ========================== */
+
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background-color: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 1000;
+}

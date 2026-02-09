@@ -1,0 +1,75 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Profesor </title>
+    <link rel="icon" href="../assets/RuleMind.png" type="image/x-icon">
+    <link rel="stylesheet" href="../css/estilos.css" />
+    <link rel="stylesheet" href="../css/profesor.css" />
+</head>
+<body>
+    
+    <div class="panel-wrapper">
+        <div class="grid-container">
+            
+<section class="card">
+                <h2> Crear Actividad en Línea ✏️</h2>
+                <form id="createActivityOnlineForm">
+                    <label for="actTitulo">Título:</label>
+                    <input type="text" id="actTitulo" required>
+                    
+                    <label for="actDescripcion">Descripción:</label>
+                    <input type="text" id="actDescripcion">
+
+                    <label for="actContenido">Contenido:</label>
+                    <textarea id="actContenido" placeholder="Ej: La oración correcta es (A) o (B)" required></textarea>
+
+                    <label for="actRespuesta">Respuesta Correcta:</label>
+                    <input type="text" id="actRespuesta" placeholder="Ej: (A) El coche es azul" required>
+
+                    <label for="actReglaId">ID Regla Gramatical:</label>
+                    <input type="number" id="actReglaId" placeholder="Ej: 5">
+
+                    <button type="submit"> Crear Actividad </button>
+                </form>
+            </section>
+
+            <section class="card">
+                <h2> Reglas Gramaticales </h2>
+                <form id="uploadReglasForm">
+                    <input type="file" name="file" id="reglasFile" required accept="application/pdf,.pdf">
+                    <button type="submit"> Subir </button>
+                </form> 
+            </section>
+            
+            <section class="card">
+                <h2> Comentario a alumno </h2>
+                <form id="comentarioForm">
+                    <label for="alumnoId">ID del alumno: </label>
+                    <input type="text" id="alumnoId" placeholder="Ej: 123" required>
+                    <br>
+                    <label for="comentarioTexto">Comentario:</label>
+                    <textarea id="comentarioTexto" placeholder="Escribe tu comentario" required></textarea>
+                    <br>
+                    <button type="submit">Enviar comentario</button>
+                </form>
+            </section>
+
+            <section class="card">
+                <h2>Material Subido</h2>
+                <ul id="materialList"></ul> 
+            </section>
+
+        </div>
+        
+        <div class="logout-container">
+            <button id="logoutBtn">Cerrar sesión</button>
+        </div>
+        
+    </div> 
+    <script src="../js/logout.js"></script>
+    <script src="../js/profesor.js"></script>
+    <div id="toast" class="toast"> </div>
+</body>
+</html>
