@@ -93,3 +93,10 @@ async function crearAnuncio(e) {
         alert("Error de conexión con el servidor");
     }
 }
+function cerrarSesion() {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
+    window.location.href = "loguearse.html";
+}
+
+window.cerrarSesion = cerrarSesion;
