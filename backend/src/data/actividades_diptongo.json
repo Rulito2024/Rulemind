@@ -1,0 +1,87 @@
+[
+{
+    "tipo": "texto",
+    "pregunta": "Escribe 5 palabras monosílabas",
+    "respuesta_ejemplo": ["sol", "pan", "luz"],
+    "regla_id": 1
+},
+{
+    "tipo": "clasificar",
+    "pregunta": "Clasifica las palabras según cantidad de sílabas",
+    "palabras": ["casa", "sol", "camino", "murciélago"],
+    "categorias": ["Monosílaba", "Bisílaba", "Trisílaba", "Polisílaba"],
+    "respuestas": {
+    "sol": "Monosílaba",
+    "casa": "Bisílaba",
+    "camino": "Trisílaba",
+    "murciélago": "Polisílaba"
+    },
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'reírse'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Hiato",
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'aceituna'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Diptongo",
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'paraguay'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Triptongo",
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'compañía'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Hiato",
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'miércoles'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Diptongo",
+    "regla_id": 1
+},
+{
+    "tipo": "multiple",
+    "pregunta": "¿Qué tipo de combinación tiene 'gualeguaychú'?",
+    "opciones": ["Diptongo", "Hiato", "Triptongo"],
+    "correcta": "Triptongo",
+    "regla_id": 1
+},
+{
+    "tipo": "completar",
+    "pregunta": "Diptongo: Vocal abierta + vocal ______ = baile",
+    "correcta": "cerrada",
+    "regla_id": 1
+},
+{
+    "tipo": "completar",
+    "pregunta": "Diptongo: Vocal cerrada + vocal ______ = consuelo",
+    "correcta": "abierta",
+    "regla_id": 1
+},
+{
+    "tipo": "completar",
+    "pregunta": "Triptongo: unión de ______ vocales",
+    "correcta": "tres",
+    "regla_id": 1
+},
+{
+    "tipo": "completar",
+    "pregunta": "Hiato: Dos vocales ______ = hiato",
+    "correcta": "abiertas",
+    "regla_id": 1
+}
+]

@@ -12,6 +12,8 @@ const PORT = process.env.PORT || 4000;
 const profesorRoutes = require("./src/routes/profesorRoutes");
 const authRoutes = require("./src/routes/authRoutes");
 const alumnoRoutes = require("./src/routes/alumnoRoutes");
+const actividadesRoutes = require("./src/routes/actividades");
+
 
 // Middlewares
 app.use(cors());
@@ -21,6 +23,7 @@ app.use(express.json());
 app.use("/api/profesor", profesorRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/alumno", alumnoRoutes);
+app.use("/api/actividades", actividadesRoutes);
 
 // servir archivos estáticos (frontend) para la redireccion desde el correo
 app.use(express.static(path.join(__dirname,"../Frontend")));

@@ -76,6 +76,41 @@ body {
     box-sizing: border-box;
 }
 
+.paginacion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+    margin-bottom: 20px; /* 👈 esto lo sube respecto al botón */
+}
+
+.card-btn {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.paginacion button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #222;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.paginacion button:hover {
+    background: #00aaff;
+}
+
+.actividad-card:hover {
+    transform: scale(1.02);
+    transition: 0.2s;
+    box-shadow: 0 0 15px rgba(0,170,255,0.3);
+}
+
 /* -------------------------------------- */
 /* BOTÓN CERRAR SESIÓN (Mismo estilo que profesor) */
 /* -------------------------------------- */
