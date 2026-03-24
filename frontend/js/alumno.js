@@ -154,16 +154,15 @@ function mostrarReglas(pagina) {
             "Uso de c y z",
             "Uso de h",
             "Uso de g y j",
-            "Uso de ll y y"
+            "Uso de y, ll, rr y x "
         ],
         3: [
-            "Mayúsculas",
-            "Homónimos",
-            "Por qué / porque",
-            "Adonde / donde",
-            "Asimismo",
-            "Conque / con qué",
-            "Otros"
+            "Mayúsculas y Minúsculas",
+            " Homónimos y Parónimos",
+            "Usos del porque y sus variantes",
+            "Usos del adonde y sus variantes",
+            "Usos del asimismo y sus variantes",
+            "Usos del conque y sus variantes",
         ]
     };
 

@@ -76,7 +76,7 @@ body {
     box-sizing: border-box;
 }
 
-.paginacion {
+#paginacion {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -91,7 +91,7 @@ body {
     margin-top: 10px;
 }
 
-.paginacion button {
+#paginacion button {
     padding: 8px 12px;
     border: none;
     border-radius: 6px;
@@ -104,6 +104,9 @@ body {
 .paginacion button:hover {
     background: #00aaff;
 }
+
+#paginacion{
+    width:100%}
 
 .actividad-card:hover {
     transform: scale(1.02);

@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Funciones de Soporte //
 
-// Protege los datos del profesor (Asumiendo que existe)
+// Protege los datos del profesor 
 async function fetchProtectedData(route, token) {
      // ... Tu código de fetchProtectedData ...
 }
@@ -149,7 +149,21 @@ async function enviarComentario(token) {
 async function createActivityOnline(token) {
     const titulo = document.getElementById("actTitulo").value.trim();
     const descripcion = document.getElementById("actDescripcion").value.trim();
-    const contenido = document.getElementById("actContenido").value.trim();
+    let contenidoInput = document.getElementById("actContenido").value.trim();
+let contenido;
+
+try {
+    contenido = JSON.parse(contenidoInput); // validar JSON
+} catch (error) {
+    showToast("❌ El contenido no es un JSON válido");
+    return;
+}
+
+if (!contenido.tipo || typeof contenido.tipo !== "string") {
+    showToast("❌ El campo tipo es obligatorio y debe ser texto.");
+    return;
+}
+
     const respuesta_correcta = document.getElementById("actRespuesta").value.trim();
     const regla_id = document.getElementById("actReglaId").value.trim();
 
@@ -168,7 +182,7 @@ async function createActivityOnline(token) {
             body: JSON.stringify({ 
                 titulo, 
                 descripcion, 
-                contenido, 
+                contenido: JSON.stringify(contenido), // Enviar como string
                 respuesta_correcta,
                 regla_id: regla_id ? parseInt(regla_id) : null // Si no hay valor, lo manda como null
             })
@@ -179,7 +193,7 @@ async function createActivityOnline(token) {
             showToast(`Error al crear actividad: ${data.message}`);
         } else {
             showToast(`Actividad creada correctamente. ¡No olvides publicarla! ✅`);
-            // Limpiar formulario después del éxito (opcional)
+            // Limpiar formulario después del éxito 
             document.getElementById("actTitulo").value = "";
             document.getElementById("actDescripcion").value = "";
             document.getElementById("actContenido").value = "";
