@@ -78,7 +78,18 @@ router.post("/upload/reglas", authMiddleware(["profesor"]), upload.single("file"
 
 //Crear una actividad con contenido y respuesta en línea
 router.post("/crear/actividad/online", authMiddleware(["profesor"]), async (req, res) => {
-    const { titulo, descripcion, contenido, respuesta_correcta, regla_id } = req.body;
+    let { titulo, descripcion, contenido, respuesta_correcta, regla_id } = req.body;
+
+    // 🔴 VALIDAR QUE SEA JSON CON TIPO
+    if (!contenido || !contenido.tipo) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "El contenido debe ser JSON válido y tener un campo 'tipo'" 
+        });
+    }
+
+    // 🔴 CONVERTIR A STRING (CLAVE)
+    contenido = JSON.stringify(contenido);
 
     if (!titulo || !contenido || !respuesta_correcta) {
         return res.status(400).json({ success: false, message: "Título, contenido y respuesta correcta son obligatorios." });

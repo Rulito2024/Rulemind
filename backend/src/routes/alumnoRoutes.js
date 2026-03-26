@@ -9,7 +9,7 @@ router.get("/actividades", authMiddleware(["alumno", "Profesor"]), async (req, r
     try {
         // Selecciona actividades que estén publicadas (publicado = 1/TRUE)
         const [rows] = await pool.query(
-            "SELECT id, titulo, descripcion, contenido, archivo FROM materiales WHERE tipo = 'actividades' AND publicado = 1 ORDER BY fecha DESC"
+            "SELECT id, titulo, descripcion, contenido, archivo, regla_id FROM materiales WHERE tipo = 'actividades' AND publicado = 1 ORDER BY fecha DESC"
         );
 
         // ⭐ PARSEAR el contenido de cada actividad (LONGTEXT → JSON)

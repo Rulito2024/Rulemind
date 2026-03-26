@@ -65,8 +65,10 @@ async function cargarActividades(token) {
         const data = await res.json();
         
         if (data.success) { 
-            actividades = data.actividades;
+        actividades = data.actividades;
+        console.log("Actividades cargadas:", actividades);
         mostrarPagina(1);
+        
         } else {
             if (contenedor) {
                 contenedor.innerHTML = "<p class='loading-message'> No hay actividades cargadas o ha ocurrido un error.</p>";
@@ -271,7 +273,7 @@ function mostrarActividades(activities) {
         }
 
         else {
-            // 👇 TU SISTEMA ORIGINAL (NO LO PERDEMOS)
+    
             contenidoHTML = `
                 <p>${activity.contenido || "Sin contenido"}</p>
                 <input type="text" id="respuesta-${activity.id}" placeholder="Escribe tu respuesta...">

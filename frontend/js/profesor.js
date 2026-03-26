@@ -158,7 +158,7 @@ try {
     showToast("❌ El contenido no es un JSON válido");
     return;
 }
-
+//validar que tenga tipo
 if (!contenido.tipo || typeof contenido.tipo !== "string") {
     showToast("❌ El campo tipo es obligatorio y debe ser texto.");
     return;
@@ -167,6 +167,7 @@ if (!contenido.tipo || typeof contenido.tipo !== "string") {
     const respuesta_correcta = document.getElementById("actRespuesta").value.trim();
     const regla_id = document.getElementById("actReglaId").value.trim();
 
+    // validar campos obligatorios
     if (!titulo || !contenido || !respuesta_correcta) {
         showToast("Título, Contenido y Respuesta son obligatorios.");
         return;
@@ -182,7 +183,7 @@ if (!contenido.tipo || typeof contenido.tipo !== "string") {
             body: JSON.stringify({ 
                 titulo, 
                 descripcion, 
-                contenido: JSON.stringify(contenido), // Enviar como string
+                contenido,
                 respuesta_correcta,
                 regla_id: regla_id ? parseInt(regla_id) : null // Si no hay valor, lo manda como null
             })
