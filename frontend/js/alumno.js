@@ -1,10 +1,10 @@
 let actividades = [];
 let paginaActual = 1;
 const porPagina = 7;
+let puntaje = 0;
 document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem("authToken");
     const role = localStorage.getItem("userRole");
-
     // Hacemos showToast y corregirActividad accesibles globalmente
     window.showToast = showToast;
     window.corregirActividad = corregirActividad;
@@ -28,6 +28,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // Carga las actividades si es alumno
     cargarActividades(token);
 });
+
+function actualizarPuntaje(puntos) {
+    console.log("Se ejecuta actualizarPuntaje con:", puntos); // ⭐ DEBUG
+
+    puntaje += puntos;
+
+    const puntajeDiv = document.getElementById("puntaje");
+    if (puntajeDiv) {
+        puntajeDiv.innerText = "Puntaje: " + puntaje;
+    }
+}
 
 // Función para mostrar el Toast (Necesaria para dar feedback)
 function showToast(msg, ms = 3000) {
@@ -363,7 +374,42 @@ async function validarRespuesta(id, respuesta) {
         showToast("Incorrecto");
     }
 }
+async function validarRespuesta(id, respuesta) {
+    const token = localStorage.getItem("authToken");
 
+    const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ respuesta_alumno: respuesta })
+    });
+
+    const data = await res.json();
+    const feedbackDiv = document.getElementById(`resultado-${id}`);
+
+    if (data.success) {
+        feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
+        showToast("Correcto");
+
+        actualizarPuntaje(10); // ⭐ AGREGAR ESTO
+    } else {
+        const teoria = data.errorDetails?.teoria || "Sin explicación";
+
+        feedbackDiv.innerHTML = `
+            <p style="color:red;">❌ Incorrecto</p>
+            <div style="background:#333;padding:10px;margin-top:5px;">
+                <strong>Regla:</strong>
+                <p>${teoria}</p>
+            </div>
+        `;
+
+        showToast("Incorrecto");
+
+        actualizarPuntaje(-5); // ⭐ OPCIONAL
+    }
+}
 
 
 
@@ -394,12 +440,13 @@ async function corregirActividad(actividadId) {
 
         const data = await res.json();
         
-        if (data.success) {
-            // Respuesta Correcta
-            feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold;">${data.message}</p>`; // Verde
-            showToast(data.message);
-        } else {
-            // Respuesta Incorrecta: Muestra el error y la teoría
+    if (data.success) {
+    // Respuesta Correcta
+    feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold;">${data.message}</p>`;
+    showToast(data.message);
+    actualizarPuntaje(10); // ⭐ SUMA PUNTOS
+    } else {
+    actualizarPuntaje(-5);// Respuesta Incorrecta: Muestra el error y la teoría
             const teoria = (data.errorDetails && data.errorDetails.teoria) 
                         ? data.errorDetails.teoria 
                         : "No hay teoría gramatical específica para este error.";

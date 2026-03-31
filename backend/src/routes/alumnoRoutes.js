@@ -125,4 +125,64 @@ router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req,
     }
 });
 
+router.post("/responder", async (req, res) => {
+    const { actividad_id, respuesta } = req.body;
+    const alumno_id = req.user.id; // si usás auth
+
+    try {
+        // 1. Obtener actividad
+        const [rows] = await pool.query(
+            "SELECT respuesta_correcta FROM materiales WHERE id = ?",
+            [actividad_id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Actividad no encontrada" });
+        }
+
+        const correcta = rows[0].respuesta_correcta;
+
+        // 2. Validar
+        const esCorrecta = respuesta === correcta;
+
+        // 3. Puntaje
+        const puntaje = esCorrecta ? 10 : 0;
+
+        // 4. Guardar resultado
+        await pool.query(
+            "INSERT INTO resultados (alumno_id, actividad_id, respuesta_usuario, es_correcta, puntaje) VALUES (?, ?, ?, ?, ?)",
+            [alumno_id, actividad_id, respuesta, esCorrecta, puntaje]
+        );
+
+        res.json({
+            success: true,
+            esCorrecta,
+            puntaje
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error al responder" });
+    }
+});
+
+router.get("/puntaje", async (req, res) => {
+    const alumno_id = req.user.id; // si usás auth
+
+    try {
+        const [rows] = await pool.query(
+            "SELECT SUM(puntaje) AS total FROM resultados WHERE alumno_id = ?",
+            [alumno_id]
+        );
+
+        res.json({
+            total: rows[0].total || 0
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error al obtener puntaje" });
+    }
+});
+
 module.exports = router;
