@@ -7,39 +7,62 @@ const router = express.Router();
 // 1. Obtener todas las actividades disponibles
 router.get("/actividades", authMiddleware(["alumno", "Profesor"]), async (req, res) => {
     try {
-        // Selecciona actividades que estén publicadas (publicado = 1/TRUE)
+        const usuarioId = req.user.id;
+
+        // 1. Obtener actividades con su estado de completado
         const [rows] = await pool.query(
-            "SELECT id, titulo, descripcion, contenido, archivo, regla_id FROM materiales WHERE tipo = 'actividades' AND publicado = 1 ORDER BY fecha DESC"
+            `SELECT m.*, IF(p.id IS NOT NULL, 1, 0) AS completada 
+             FROM materiales m 
+             LEFT JOIN progreso_alumnos p ON m.id = p.actividad_id AND p.alumno_id = ?
+             WHERE m.tipo = 'actividades' AND m.publicado = 1 
+             ORDER BY m.fecha DESC`, 
+            [usuarioId]
         );
 
-        // ⭐ PARSEAR el contenido de cada actividad (LONGTEXT → JSON)
+        // 2. OBTENER EL PUNTAJE REAL DEL USUARIO (Esto es lo que falta)
+        const [userRows] = await pool.query("SELECT puntaje FROM users WHERE id = ?", [usuarioId]);
+        
+        // Si por alguna razón no hay usuario, ponemos 0
+        const puntajeActual = userRows.length > 0 ? userRows[0].puntaje : 0;
+
+        // Parsear el contenido JSON de las actividades
         const actividadesParseadas = rows.map(actividad => {
             try {
-                // Solo parsear si contenido no está vacío
                 if (actividad.contenido) {
                     actividad.contenido = JSON.parse(actividad.contenido);
                 }
             } catch (e) {
-                console.error(`Error al parsear contenido de actividad ID ${actividad.id}:`, e);
-                // Mantener el contenido original si falla el parsing
+                console.error(`Error parseando actividad ${actividad.id}`);
             }
             return actividad;
         });
 
-        res.json({ success: true, actividades: actividadesParseadas });
+        // 3. ENVIAR LA RESPUESTA COMPLETA
+        res.json({ 
+            success: true, 
+            actividades: actividadesParseadas, 
+            puntajeTotal: puntajeActual // <--- ESTO es lo que espera el frontend
+        });
+
     } catch (err) {
         console.error("Error al obtener actividades:", err);
         res.status(500).json({ success: false, message: "Error al obtener actividades" });
     }
 });
-
 // 2. Obtener una actividad especifica por ID
 router.get("/actividades/:id", authMiddleware(["alumno", "Profesor"]), async (req, res) => {
     try {
         const { id } = req.params;
+        const usuarioId = req.user.id; // Obtenemos el ID del usuario desde el middleware de auth
+
+        // Modificamos la consulta para incluir el estado de progreso
         const [rows] = await pool.query(
-            "SELECT * FROM materiales WHERE id = ? AND tipo = 'actividades' AND publicado = 1", 
-            [id]
+            `SELECT m.*, 
+             IF(p.id IS NOT NULL, 1, 0) AS completada 
+             FROM materiales m 
+             LEFT JOIN progreso_alumnos p ON m.id = p.actividad_id AND p.alumno_id = ?
+             WHERE m.id = ? AND m.tipo = 'actividades' AND m.publicado = 1`, 
+            [usuarioId, id]
         );
         
         if (rows.length === 0) {
@@ -48,7 +71,15 @@ router.get("/actividades/:id", authMiddleware(["alumno", "Profesor"]), async (re
 
         const actividad = rows[0];
 
-        // ⭐ PARSEAR el contenido (LONGTEXT → JSON) - ESTO ES LO VITAL
+        // Si es un alumno y la actividad ya figura como completada, podrías bloquearla aquí mismo
+        // o simplemente enviar el flag 'completada' para que el frontend decida qué mostrar.
+        if (req.user.rol === "alumno" && actividad.completada === 1) {
+            // Opción A: Mandar la info pero avisar que está hecha
+            // Opción B: Podrías retornar un error si no quieres que ni siquiera vea el contenido
+            // Vamos con la Opción A para que el frontend pueda mostrar el mensaje "Ya la aprobaste"
+        }
+
+        // PARSEAR el contenido (LONGTEXT → JSON)
         try {
             if (actividad.contenido) {
                 actividad.contenido = JSON.parse(actividad.contenido);
@@ -69,59 +100,62 @@ router.get("/actividades/:id", authMiddleware(["alumno", "Profesor"]), async (re
 });
 
 // 3. Evaluar la respuesta del alumno (Lógica de corrección y regla gramatical)
+// Ejemplo en la ruta de corrección
+// 3. Evaluar la respuesta del alumno (Lógica de corrección, bloqueo y puntos)
 router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params; // ID de la actividad
+    const alumnoId = req.user.id; // ID del alumno desde el token
     const { respuesta_alumno } = req.body;
 
-    if (!respuesta_alumno) {
-        return res.status(400).json({ success: false, message: "La respuesta no puede estar vacía" });
-    }
-
     try {
-        let teoriaTexto = null;
-        // Obtener la respuesta correcta y la regla asociada
+        // --- BLOQUEO DE SEGURIDAD (Punto 3) ---
+        // Verificamos si ya existe en progreso_alumnos antes de hacer nada
+        const [yaHecha] = await pool.query(
+            "SELECT id FROM progreso_alumnos WHERE alumno_id = ? AND actividad_id = ?",
+            [alumnoId, id]
+        );
+
+        if (yaHecha.length > 0) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Esta actividad ya fue aprobada anteriormente y no suma más puntos." 
+            });
+        }
+
+        // 1. Obtener la actividad para comparar la respuesta
         const [rows] = await pool.query(
-            "SELECT respuesta_correcta, regla_id FROM materiales WHERE id = ? AND tipo = 'actividades' AND publicado = 1", 
+            "SELECT respuesta_correcta FROM materiales WHERE id = ? AND publicado = 1",
             [id]
         );
 
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: "Actividad no encontrada o no publicada" });
-        }
+        if (rows.length === 0) return res.status(404).json({ success: false, message: "Actividad no encontrada" });
 
-        const actividad = rows[0];
-        // Normalización: elimina espacios extra y convierte a minúsculas
-        const respuesta_correcta = actividad.respuesta_correcta ? actividad.respuesta_correcta.trim().toLowerCase() : '';
-        const respuesta_enviada = respuesta_alumno.trim().toLowerCase();
+        const esCorrecta = (respuesta_alumno.trim().toLowerCase() === rows[0].respuesta_correcta.trim().toLowerCase());
 
-        // Evaluación de la respuesta
-        if (respuesta_enviada === respuesta_correcta && respuesta_correcta !== '') {
-            return res.json({ success: true, message: "¡Respuesta Correcta! ✅" });
-        }
-
-        // Respuesta Incorrecta: Obtener la teoría si existe un regla_id
-        if (actividad.regla_id) {
-            const [reglaRows] = await pool.query(
-                "SELECT teoria FROM reglas WHERE id = ?", 
-                [actividad.regla_id]
+        if (esCorrecta) {
+            // 2. GUARDAR PROGRESO
+            await pool.query(
+                "INSERT IGNORE INTO progreso_alumnos (alumno_id, actividad_id) VALUES (?, ?)",
+                [alumnoId, id]
             );
-            if (reglaRows.length > 0) {
-                teoriaTexto = reglaRows[0].teoria;
-            }
+
+            // 3. SUMAR PUNTOS AL USUARIO EN LA DB
+            // Esto asegura que el puntaje no se borre al recargar
+            await pool.query(
+                "UPDATE users SET puntaje = puntaje + 10 WHERE id = ?",
+                [alumnoId]
+            );
+            
+            return res.json({ 
+                success: true, 
+                message: "¡Correcto! Actividad completada y +10 puntos guardados. ✅" 
+            });
+        } else {
+            return res.json({ success: false, message: "Respuesta incorrecta. Inténtalo de nuevo." });
         }
-
-        // Enviar respuesta de error con la teoría
-        res.json({ 
-            success: false, 
-            message: "Respuesta Incorrecta. Vuelve a intentarlo.",
-            errorDetails: {
-                teoria: teoriaTexto || "No hay teoría gramatical específica para este error."
-            }
-        });
-
     } catch (err) {
-        console.error("Error al corregir actividad:", err);
-        res.status(500).json({ success: false, message: "Error interno al corregir la actividad" });
+        console.error(err);
+        res.status(500).json({ success: false, message: "Error al procesar la actividad" });
     }
 });
 
