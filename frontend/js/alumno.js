@@ -1,7 +1,19 @@
 let actividades = [];
+let puntaje = 0;
 let paginaActual = 1;
 const porPagina = 7;
-let puntaje = 0;
+
+function actualizarPuntaje(puntos) {
+    console.log("Se ejecuta actualizarPuntaje con:", puntos); // ⭐ DEBUG
+
+    puntaje += puntos;
+
+    const puntajeDiv = document.getElementById("puntaje");
+    if (puntajeDiv) {
+        puntajeDiv.innerText = "Puntaje: " + puntaje;
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem("authToken");
     const role = localStorage.getItem("userRole");
@@ -29,17 +41,6 @@ document.addEventListener("DOMContentLoaded", () => {
     cargarActividades(token);
 });
 
-function actualizarPuntaje(puntos) {
-    console.log("Se ejecuta actualizarPuntaje con:", puntos); // ⭐ DEBUG
-
-    puntaje += puntos;
-
-    const puntajeDiv = document.getElementById("puntaje");
-    if (puntajeDiv) {
-        puntajeDiv.innerText = "Puntaje: " + puntaje;
-    }
-}
-
 // Función para mostrar el Toast (Necesaria para dar feedback)
 function showToast(msg, ms = 3000) {
     // ASUMIENDO que tienes un elemento con ID="toast" en tu HTML
@@ -57,13 +58,9 @@ function showToast(msg, ms = 3000) {
     }, ms);
 }
 
-
 async function cargarActividades(token) {
     const contenedor = document.getElementById("activitiesList");
-    if (contenedor) {
-        contenedor.innerHTML = "<p class='loading-message'>Cargando actividades disponibles...</p>";
-    }
-
+    
     try {
         const res = await fetch("http://localhost:4000/api/alumno/actividades", { 
             method: "GET",
@@ -74,23 +71,29 @@ async function cargarActividades(token) {
         });
 
         const data = await res.json();
-        
+        console.log("Respuesta completa del servidor:", data); // <--- MIRA ESTO EN CONSOLA
+
         if (data.success) { 
-        actividades = data.actividades;
-        console.log("Actividades cargadas:", actividades);
-        mostrarPagina(1);
-        
-        } else {
-            if (contenedor) {
-                contenedor.innerHTML = "<p class='loading-message'> No hay actividades cargadas o ha ocurrido un error.</p>";
+            actividades = data.actividades;
+
+            // Verificamos si el backend envió el puntaje
+            if (data.hasOwnProperty('puntajeTotal')) {
+                puntaje = data.puntajeTotal;
+                console.log("Puntaje actualizado a:", puntaje);
+            } else {
+                console.warn("El backend NO envió puntajeTotal. Revisa alumnoRoutes.js");
+                puntaje = 0; 
             }
-            console.error("Error del servidor al cargar actividades:", data.message);
+
+            const puntajeDiv = document.getElementById("puntaje");
+            if (puntajeDiv) {
+                puntajeDiv.innerText = "Puntaje: " + puntaje;
+            }
+
+            mostrarPagina(1);
         }
     } catch (error) {
-        console.error("Error de red al cargar actividades:", error);
-        if (contenedor) {
-            contenedor.innerHTML = "<p>Error de conexión al servidor.</p>";
-        }
+        console.error("Error de red:", error);
     }
 }
 
@@ -228,44 +231,40 @@ function mostrarActividades(activities) {
         const div = document.createElement("div");
         div.className = "actividad-card";
 
-        let contenidoHTML = "";
-
-        const act = activity.contenido;
-        if (!act) {
-            contenidoHTML = "<p>Error: actividad sin contenido</p>";
+        // --- LÓGICA DE BLOQUEO SI YA ESTÁ COMPLETADA ---
+        if (activity.completada === 1) {
+            div.innerHTML = `
+                <h3>${activity.titulo || "Actividad"}</h3>
+                <p style="color: #4CAF50; font-weight: bold; background: rgba(76, 175, 80, 0.1); padding: 10px; border-radius: 5px; border-left: 5px solid #4CAF50;">
+                    ✅ Ya has aprobado esta actividad.
+                </p>
+                <button disabled style="background: #555; cursor: not-allowed; opacity: 0.7;">Completada</button>
+            `;
+            contenedor.appendChild(div);
+            return; // Saltamos el resto de la lógica para esta tarjeta
         }
 
-        // 🧠 NUEVO: según tipo de actividad
-        else if (act.tipo === "multiple") {
+        // --- LÓGICA NORMAL (Si no está completada) ---
+        let contenidoHTML = "";
+        const act = activity.contenido;
+
+        if (!act) {
+            contenidoHTML = "<p>Error: actividad sin contenido</p>";
+        } else if (act.tipo === "multiple") {
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
                 ${act.opciones.map(op => `
                     <button onclick="responderMultiple(${activity.id}, '${op}')">${op}</button>
                 `).join("")}
             `;
-        }
-
-        else if (act.tipo === "completar") {
+        } else if (act.tipo === "completar" || act.tipo === "texto") {
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
                 <input type="text" id="respuesta-${activity.id}">
                 <button onclick="responderTexto(${activity.id})">Responder</button>
             `;
-        }
-
-         // 🟢 TEXTO
-        else if (act.tipo === "texto") {
-            contenidoHTML = `
-                <p><strong>${act.pregunta}</strong></p>
-                <input type="text" id="respuesta-${activity.id}">
-                <button onclick="responderTexto(${activity.id})">Responder</button>
-            `;
-        }
-
-        // 🟢 CLASIFICAR
-        else if (act.tipo === "clasificar") {
+        } else if (act.tipo === "clasificar") {
             contenidoHTML = `<p><strong>Clasificá:</strong></p>`;
-
             act.palabras.forEach(p => {
                 contenidoHTML += `
                     <div>
@@ -279,14 +278,10 @@ function mostrarActividades(activities) {
                     </div>
                 `;
             });
-
             contenidoHTML += `<button onclick="validarClasificar(${activity.id})">Validar</button>`;
-        }
-
-        else {
-    
+        } else {
             contenidoHTML = `
-                <p>${activity.contenido || "Sin contenido"}</p>
+                <p>${activity.descripcion || "Sin descripción"}</p>
                 <input type="text" id="respuesta-${activity.id}" placeholder="Escribe tu respuesta...">
                 <button onclick="corregirActividad('${activity.id}')">Corregir</button>
             `;
@@ -345,74 +340,56 @@ function validarClasificar(id) {
 async function validarRespuesta(id, respuesta) {
     const token = localStorage.getItem("authToken");
 
-    const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ respuesta_alumno: respuesta })
-    });
+    try {
+        const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ respuesta_alumno: respuesta })
+        });
 
-    const data = await res.json();
-    const feedbackDiv = document.getElementById(`resultado-${id}`);
+        const data = await res.json();
+        const feedbackDiv = document.getElementById(`resultado-${id}`);
 
-    if (data.success) {
-        feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
-        showToast("Correcto");
-    } else {
-        const teoria = data.errorDetails?.teoria || "Sin explicación";
+        if (data.success) {
+            feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
+            showToast("¡Correcto! Actividad guardada.");
+            actualizarPuntaje(10);
 
-        feedbackDiv.innerHTML = `
-            <p style="color:red;">❌ Incorrecto</p>
-            <div style="background:#333;padding:10px;margin-top:5px;">
-                <strong>Regla:</strong>
-                <p>${teoria}</p>
-            </div>
-        `;
+            // ⭐ ACTUALIZACIÓN LOCAL:
+            // Buscamos la actividad en el array global y la marcamos como completada
+            const index = actividades.findIndex(a => a.id == id);
+            if (index !== -1) {
+                actividades[index].completada = 1;
+            }
 
-        showToast("Incorrecto");
+            // Opcional: Podés hacer que después de 2 segundos se bloquee la tarjeta automáticamente
+            setTimeout(() => {
+                // Volvemos a filtrar las actividades de la regla actual para que se redibuje la lista bloqueada
+                const reglaId = actividades[index].regla_id;
+                const filtradas = actividades.filter(a => a.regla_id == reglaId);
+                mostrarActividades(filtradas);
+            }, 2000);
+
+        } else {
+            const teoria = data.errorDetails?.teoria || "Sin explicación";
+            feedbackDiv.innerHTML = `
+                <p style="color:red;">❌ Incorrecto</p>
+                <div style="background:#333;padding:10px;margin-top:5px;border-radius:5px;">
+                    <strong>Regla:</strong>
+                    <p>${teoria}</p>
+                </div>
+            `;
+            showToast("Incorrecto");
+            actualizarPuntaje(-5);
+        }
+    } catch (error) {
+        console.error("Error al validar:", error);
+        showToast("Error de conexión");
     }
 }
-async function validarRespuesta(id, respuesta) {
-    const token = localStorage.getItem("authToken");
-
-    const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ respuesta_alumno: respuesta })
-    });
-
-    const data = await res.json();
-    const feedbackDiv = document.getElementById(`resultado-${id}`);
-
-    if (data.success) {
-        feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
-        showToast("Correcto");
-
-        actualizarPuntaje(10); // ⭐ AGREGAR ESTO
-    } else {
-        const teoria = data.errorDetails?.teoria || "Sin explicación";
-
-        feedbackDiv.innerHTML = `
-            <p style="color:red;">❌ Incorrecto</p>
-            <div style="background:#333;padding:10px;margin-top:5px;">
-                <strong>Regla:</strong>
-                <p>${teoria}</p>
-            </div>
-        `;
-
-        showToast("Incorrecto");
-
-        actualizarPuntaje(-5); // ⭐ OPCIONAL
-    }
-}
-
-
-
 // Función corregir Actividad // 
 async function corregirActividad(actividadId) {
     const token = localStorage.getItem("authToken");
