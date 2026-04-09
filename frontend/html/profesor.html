@@ -13,63 +13,94 @@
     <div class="panel-wrapper">
         <div class="grid-container">
             
-<section class="card">
-                <h2> Crear Actividad en Línea ✏️</h2>
-                <form id="createActivityOnlineForm">
-                    <label for="actTitulo">Título:</label>
-                    <input type="text" id="actTitulo" required>
-                    
-                    <label for="actDescripcion">Descripción:</label>
-                    <input type="text" id="actDescripcion">
+            <!-- FILA 1 -->
+    <section class="card">
+    <h2 id="formTitle">Crear Actividad en Línea ✏️</h2>
+    <form id="createActivityOnlineForm">
+        <input type="hidden" id="editActivityId" value="">
 
-                    <label for="actContenido">Contenido:</label>
-                    <textarea id="actContenido" placeholder="Ej: La oración correcta es (A) o (B)" required></textarea>
-
-                    <label for="actRespuesta">Respuesta Correcta:</label>
-                    <input type="text" id="actRespuesta" placeholder="Ej: (A) El coche es azul" required>
-
-                    <label for="actReglaId">ID Regla Gramatical:</label>
-                    <input type="number" id="actReglaId" placeholder="Ej: 5">
-
-                    <button type="submit"> Crear Actividad </button>
-                </form>
-            </section>
-
-            <section class="card">
-                <h2> Reglas Gramaticales </h2>
-                <form id="uploadReglasForm">
-                    <input type="file" name="file" id="reglasFile" required accept="application/pdf,.pdf">
-                    <button type="submit"> Subir </button>
-                </form> 
-            </section>
-            
-            <section class="card">
-                <h2> Comentario a alumno </h2>
-                <form id="comentarioForm">
-                    <label for="alumnoId">ID del alumno: </label>
-                    <input type="text" id="alumnoId" placeholder="Ej: 123" required>
-                    <br>
-                    <label for="comentarioTexto">Comentario:</label>
-                    <textarea id="comentarioTexto" placeholder="Escribe tu comentario" required></textarea>
-                    <br>
-                    <button type="submit">Enviar comentario</button>
-                </form>
-            </section>
-
-            <section class="card">
-                <h2>Material Subido</h2>
-                <ul id="materialList"></ul> 
-            </section>
-
-        </div>
+        <label for="actTitulo">Título:</label>
+        <input type="text" id="actTitulo" required>
         
+        <label for="actDescripcion">Descripción:</label>
+        <input type="text" id="actDescripcion">
+
+        <label for="actContenido">Contenido:</label>
+        <!-- Aquí está el placeholder que necesitabas -->
+        <textarea id="actContenido" placeholder='Ej: {"tipo": "clasificacion", "palabra": "TEATRO", "opciones": ["Hiato", "Diptongo"]}' required></textarea>
+
+        <label for="actRespuesta">Respuesta Correcta:</label>
+        <input type="text" id="actRespuesta" placeholder="Ej: Hiato" required>
+
+        <label for="actReglaId">Seleccionar Regla Gramatical:</label>
+        <select id="actReglaId">
+            <option value="">Cargando reglas...</option>
+        </select>
+
+        <button type="submit" id="submitBtn"> Crear Actividad </button>
+        <button type="button" id="cancelEditBtn" style="display:none; background: gray; margin-top: 5px;" onclick="limpiarFormulario()"> Cancelar Edición </button>
+    </form>
+</section>
+
+    <section class="card">
+    <h2>Gestión de Reglas Gramaticales 📚</h2>
+    <form id="reglaGramaticalForm">
+        <input type="hidden" id="editReglaIdInput" value="">
+        
+        <label for="reglaNombre">Nombre de la Regla:</label>
+        <input type="text" id="reglaNombre" placeholder="Ej: Reglas de Acentuación" required>
+
+        <label for="reglaTeoria">Teoría / Contenido:</label>
+        <textarea id="reglaTeoria" placeholder="Escribe aquí toda la explicación teórica..." required></textarea>
+
+        <label for="reglaPalabraClave">Palabra Clave:</label>
+        <input type="text" id="reglaPalabraClave" placeholder="Ej: acentuacion">
+
+        <button type="submit" id="reglaSubmitBtn">Guardar Regla</button>
+        <button type="button" id="cancelReglaEdit" style="display:none; background:gray; margin-top:5px;" onclick="limpiarFormulario()">Cancelar</button>
+    </form>
+
+    <!-- Lista de reglas para editar/borrar -->
+    <div class="lista-reglas-gestion" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 10px;">
+        <h3>Reglas Existentes</h3>
+        <ul id="listaReglasAdmin" style="list-style: none; padding: 0;">
+            <!-- Se carga dinámicamente -->
+        </ul>
+    </div>
+</section>
+
+        <!-- FILA 2: LADO A LADO -->
+        <section class="card card-comentarios">
+            <h2>Comentario a alumno 📩</h2>
+            <form id="comentarioForm">
+                <label for="alumnoSelect">Seleccionar Alumno:</label>
+                <select id="alumnoSelect">
+                    <option value="">-- Seleccione un alumno --</option>
+                </select>
+
+                <label for="comentarioTexto">Escribir mensaje:</label>
+                <!-- Este es el cuadro que ahora será más grande y rectangular -->
+                <textarea id="comentarioTexto" placeholder="Escribe aquí el mensaje..."></textarea>
+
+                <button type="submit">Enviar comentario</button>
+            </form>
+        </section> 
+
+        <section class="card">
+            <h2>Material Subido</h2>
+            <ul id="materialList"></ul>
+</section>
+    </div> 
+</div>
+
         <div class="logout-container">
             <button id="logoutBtn">Cerrar sesión</button>
         </div>
         
     </div> 
+    <div id="toast" class="toast"> </div>
     <script src="../js/logout.js"></script>
     <script src="../js/profesor.js"></script>
-    <div id="toast" class="toast"> </div>
+
 </body>
 </html>

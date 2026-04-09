@@ -10,20 +10,50 @@
 </head>
 <body>
     <div class="panel-wrapper">
-    <div class="header-container">
-    <h1 class="main-title"> Actividades Disponibles </h1>
-    <h2 id="nivelTitulo" style="text-align:center; color:#00aaff;">Nivel 1</h2>
-    <h2 id="puntaje" style="text-align:center; color:#00ffcc;">Puntaje: 0</h2>
-    <div id="activitiesList" class="activity-container">
-        <p> Cargando Actividades... </p>
-    </div>
-    </div>
-    <div id="paginacion" class="paginacion"></div>
-    <div class="logout-container-alumno">
+        
+        <!-- SECCIÓN DE SELECCIÓN DE REGLAS -->
+        <!-- Este bloque se oculta cuando el alumno elija una regla -->
+        <div id="seccion-seleccion-reglas">
+            <div class="header-container">
+                <h1 class="main-title">Actividades Disponibles</h1>
+                <h2 id="subtitulo-reglas" style="color: #ccc; font-size: 1.2em;">Seleccione una regla</h2>
+            </div>
+
+            <!-- Aca se carga las 6 por pagina -->
+            <div id="contenedor-reglas" class="reglas-grid">
+                <p>Cargando reglas...</p>
+            </div>
+            
+            <!-- Controles de navegación de reglas -->
+            <div id="paginacion-reglas" class="paginacion-reglas"></div>
+        </div>
+
+        <!-- SECCIÓN DE ACTIVIDADES (Empieza OCULTO) -->
+        <!-- Se muestra solo cuando el alumno toque "Entrar" -->
+        <div id="seccion-actividades-dinamicas" style="display: none;">
+            <div class="header-container">
+                <h1 id="nivelTitulo" class="main-title">Nombre de la Regla</h1>
+                <h2 id="puntaje">Puntaje: 0</h2>
+                
+                <div id="activitiesList" class="activity-container">
+                    <!-- Aca se carga la actividad y el botón de volver -->
+                </div>
+            </div>
+            
+            <!-- Paginación de actividades -->
+            <div id="paginacion-actividades" class="paginacion"></div>
+        </div>
+
+        <!-- BOTÓN CERRAR SESIÓN  -->
+        <div class="logout-container-alumno">
             <button id="logoutBtnAlumno" onclick="cerrarSesion()">Cerrar sesión</button>
+        </div>
     </div>
-</div>
+
     <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="../js/logout.js"></script>
     <script src="../js/alumno.js"></script>
 </body>
 </html>

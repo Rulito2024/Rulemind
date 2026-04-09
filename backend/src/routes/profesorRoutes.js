@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const nodemailer = require("nodemailer")
 const pool = require("../db");
 const authMiddleware = require("../middlewares/authMiddleware");
 
@@ -17,18 +18,9 @@ cb(null, Date.now() + "-" + file.originalname); // nombre del archivo
 
 // NUEVO: Función de filtro para Multer
 const fileFilter = (req, file, cb) => {
-    // Obtiene 'reglas' o 'actividades' del URL (ej: /upload/reglas)
+    //  filtro para actividades
     const tipoSubida = req.url.split('/').pop(); 
-
-    if (tipoSubida === 'reglas') {
-        // Solo permitir PDF para reglas
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error("Solo se permiten archivos PDF (.pdf) para reglas gramaticales."), false);
-        }
-    } else if (tipoSubida === 'actividades') {
-        // Solo permitir Word (DOC o DOCX) para actividades
+if (tipoSubida === 'actividades') {
         if (file.mimetype === 'application/msword' || 
             file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             cb(null, true);
@@ -36,45 +28,76 @@ const fileFilter = (req, file, cb) => {
             cb(new Error("Solo se permiten archivos de Word (.doc o .docx) para actividades."), false);
         }
     } else {
-        cb(new Error("Ruta de subida no válida o tipo desconocido."), false);
+        cb(null, true);
     }
 };
-
+    
 // Modificar la inicialización de Multer para usar el filtro
 const upload = multer({ 
     storage, 
     fileFilter // Aplicamos el filtro de extensiones
 }); 
 
-// NUEVO: Middleware para capturar el error de Multer/fileFilter y devolver una respuesta JSON
 router.use((err, req, res, next) => {
-    // Captura errores específicos de Multer o errores generados por fileFilter
-    if (err instanceof multer.MulterError || err.message.includes("Solo se permiten")) {
+    // Captura errores de Multer (como archivos muy pesados) o de nuestro filtro (formato incorrecto)
+    if (err instanceof multer.MulterError || (err.message && err.message.includes("Solo se permiten"))) {
         return res.status(400).json({ success: false, message: err.message });
     }
-    next(err); // Pasa otros errores al manejador por defecto
+    next(err); 
 });
 
-/* SUBIR ARCHIVOS */
+/* ============================
+   🔹 GESTIÓN DE REGLAS (NUEVO)
+   ============================ */
 
-// Subir reglas gramaticales
-router.post("/upload/reglas", authMiddleware(["profesor"]), upload.single("file"), async (req, res) => {
+// Obtener todas las reglas para la lista y el selector
+router.get("/reglas", authMiddleware(["profesor"]), async (req, res) => {
     try {
-        // CORRECCIÓN: Insertar en la tabla 'materiales' con tipo 'reglas'
-        if (!req.file) { // Añadimos una verificación de seguridad en el backend
-            return res.status(400).json({ success: false, message: "No se proporcionó ningún archivo" });
-        }
-
-        await pool.query("INSERT INTO materiales (tipo, archivo) VALUES (?, ?)", [
-            "reglas", 
-            req.file.filename,
-        ]);
-        res.json({ success: true, message: "Reglas subidas correctamente", file: req.file });
+        const [rows] = await pool.query("SELECT * FROM reglas ORDER BY nombre ASC");
+        res.json(rows);
     } catch (err) {
-        console.error("Error al subir reglas:", err);
-        res.status(500).json({ success: false, message: "Error al subir reglas" });
+        console.error("Error al obtener reglas:", err);
+        res.status(500).json({ success: false, message: "Error al obtener reglas" });
     }
 });
+
+// Crear o Actualizar Regla (Texto en BD)
+router.post("/guardar-regla", authMiddleware(["profesor"]), async (req, res) => {
+    const { id, nombre, teoria, palabra_clave } = req.body;
+    try {
+        if (id) {
+            // ACTUALIZAR EXISTENTE
+            await pool.query(
+                "UPDATE reglas SET nombre = ?, teoria = ?, palabra_clave = ? WHERE id = ?",
+                [nombre, teoria, palabra_clave || null, id]
+            );
+            res.json({ success: true, message: "Regla actualizada correctamente" });
+        } else {
+            // INSERTAR NUEVA
+            await pool.query(
+                "INSERT INTO reglas (nombre, teoria, palabra_clave) VALUES (?, ?, ?)",
+                [nombre, teoria, palabra_clave || null]
+            );
+            res.json({ success: true, message: "Regla creada correctamente" });
+        }
+    } catch (err) {
+        console.error("Error al guardar regla:", err);
+        res.status(500).json({ success: false, message: "Error al procesar la regla" });
+    }
+});
+
+// Borrar Regla
+router.delete("/borrar-regla/:id", authMiddleware(["profesor"]), async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query("DELETE FROM reglas WHERE id = ?", [id]);
+        res.json({ success: true, message: "Regla eliminada correctamente" });
+    } catch (err) {
+        console.error("Error al borrar regla:", err);
+        res.status(500).json({ success: false, message: "No se puede borrar la regla. Verifique que no esté siendo usada en una actividad." });
+    }
+});
+
 
 //Crear una actividad con contenido y respuesta en línea
 router.post("/crear/actividad/online", authMiddleware(["profesor"]), async (req, res) => {
@@ -130,18 +153,65 @@ try {
 
 /* MATERIAL SUBIDO (LISTAR Y ELIMINAR) */
 
-// Ver materiales subidos (Reglas y Actividades Subidas por Archivo)
+// Ver materiales subidos con el NOMBRE de la regla asociada
 router.get("/materiales", authMiddleware(["profesor"]), async (req, res) => {
     try {
-        const [rows] = await pool.query(
-            // CONSULTA CORREGIDA: Incluye 'titulo'/'descripcion' y usa 'fecha'.
-            "SELECT id, tipo, archivo, titulo, descripcion, fecha, publicado FROM materiales ORDER BY fecha DESC"
-        );
-        // Devolvemos el array de filas directamente, como acordamos.
+        const query = `
+            SELECT 
+                m.id, 
+                m.tipo, 
+                m.archivo, 
+                m.titulo, 
+                m.descripcion, 
+                m.contenido, 
+                m.respuesta_correcta, 
+                m.regla_id, 
+                m.fecha, 
+                m.publicado,
+                r.nombre AS nombre_regla -- Buscamos 'nombre' en la tabla 'reglas'
+            FROM materiales m
+            LEFT JOIN reglas r ON m.regla_id = r.id
+            ORDER BY m.fecha DESC
+        `;
+        
+        const [rows] = await pool.query(query);
         res.json(rows); 
     } catch (err) {
         console.error("Error al obtener materiales:", err);
         res.status(500).json({ success: false, message: "Error al obtener materiales" });
+    }
+});
+
+// EDITAR una actividad o material existente
+router.put("/materiales/:id", authMiddleware(["profesor"]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        let { titulo, descripcion, contenido, respuesta_correcta, regla_id } = req.body;
+
+        // Validar que el contenido sea un objeto antes de convertirlo a string
+        if (contenido && typeof contenido === 'object') {
+            contenido = JSON.stringify(contenido);
+        }
+
+        const query = `
+            UPDATE materiales 
+            SET titulo = ?, descripcion = ?, contenido = ?, respuesta_correcta = ?, regla_id = ? 
+            WHERE id = ?
+        `;
+
+        await pool.query(query, [
+            titulo, 
+            descripcion, 
+            contenido, 
+            respuesta_correcta, 
+            regla_id || null, 
+            id
+        ]);
+
+        res.json({ success: true, message: "Material actualizado correctamente ✅" });
+    } catch (err) {
+        console.error("Error al actualizar material:", err);
+        res.status(500).json({ success: false, message: "Error al actualizar el material" });
     }
 });
 
@@ -185,21 +255,69 @@ router.put("/materiales/publicar/:id", authMiddleware(["profesor"]), async (req,
 
 /* COMENTARIOS Y LISTADOS */
 
-// Enviar comentario a un alumno
-router.post("/comentario", authMiddleware(["profesor"]), async (req, res) => {
-    try {
-        const { alumnoId, comentario } = req.body;
-        if (!alumnoId || !comentario)
-            return res.status(400).json({ success: false, message: "Faltan datos" });
+// Enviar comentario a un alumno y NOTIFICAR por Mail
+router.post("/enviar-comentario", authMiddleware(["profesor"]), async (req, res) => {
+    const { alumnoId, emailAlumno, comentario } = req.body;
 
-        await pool.query("INSERT INTO comentarios (alumno_id, comentario) VALUES (?, ?)", [
-            alumnoId,
-            comentario,
-        ]);
-        res.json({ success: true, message: "Comentario enviado correctamente ✅" });
+    if (!alumnoId || !comentario || !emailAlumno) {
+        return res.status(400).json({ success: false, message: "Faltan datos obligatorios (ID, Email o Mensaje)." });
+    }
+
+    try {
+        // 1. Guardar en la base de datos (en la tabla 'comentarios')
+        await pool.query("INSERT INTO comentarios (alumno_id, comentario, fecha) VALUES (?, ?, NOW())", 
+            [alumnoId, comentario]
+        ); 
+
+        // 2. Configurar el transporte de Gmail
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { 
+                user: 'castagnanicolas08@gmail.com', // <---  GMAIL 
+                pass: 'kdezptznxyenfxdf'  // <---  CONTRASEÑA DE APLICACIÓN 
+            }
+        });
+
+        // 3. Definir el contenido del correo
+        const mailOptions = {
+            from: '"RuleMind - Plataforma Educativa" <castagnanicolas08@gmail.com>', // <---  GMAIL DEVUELTA
+            to: emailAlumno,
+            subject: '📝 Tienes un nuevo comentario de tu profesor',
+            html: `
+                <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #007bff;">¡Hola!</h2>
+                    <p>Tu profesor ha corregido una de tus actividades y te ha dejado un mensaje:</p>
+                    <blockquote style="background: #f9f9f9; padding: 15px; border-left: 5px solid #007bff;">
+                        "${comentario}"
+                    </blockquote>
+                    <p>Ingresa a la plataforma para ver más detalles.</p>
+                    <hr>
+                    <small>Este es un mensaje automático de RuleMind.</small>
+                </div>
+            `
+        };
+
+        // 4. Enviar el mail
+        await transporter.sendMail(mailOptions);
+
+        res.json({ success: true, message: "Comentario guardado y mail enviado ✅" });
+
     } catch (err) {
-        console.error("Error al enviar comentario:", err);
-        res.status(500).json({ success: false, message: "Error al enviar comentario" });
+        console.error("Error en el proceso de comentario/mail:", err);
+        res.status(500).json({ success: false, message: "Error al procesar el envío." });
+    }
+});
+
+// Obtener lista de alumnos para el selector del comentario
+router.get("/alumnos-lista", authMiddleware(["profesor", "admin"]), async (req, res) => {
+    try {
+        // Traemos solo usuarios con rol 'alumno'
+        const [alumnos] = await pool.query(
+            "SELECT id, full_name, email FROM users WHERE role = 'alumno' ORDER BY full_name ASC"
+        );
+        res.json(alumnos);
+    } catch (err) {
+        res.status(500).json({ error: "Error al obtener alumnos" });
     }
 });
 

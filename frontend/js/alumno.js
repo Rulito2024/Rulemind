@@ -1,15 +1,18 @@
 let actividades = [];
-let paginaActual = 1;
-const porPagina = 7;
 let puntaje = 0;
+
 document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem("authToken");
     const role = localStorage.getItem("userRole");
+    
     // Hacemos showToast y corregirActividad accesibles globalmente
     window.showToast = showToast;
-    window.corregirActividad = corregirActividad;
     window.cerrarSesion = cerrarSesion;
-    
+    window.responderMultiple = responderMultiple;
+    window.responderTexto = responderTexto;
+    window.validarClasificar = validarClasificar;
+
+
     if (!token) {
         // Si no hay token, lo mando de vuelta al login
         window.location.href = "loguearse.html";
@@ -24,30 +27,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     console.log("Sesión activa: ", role);
+
+    // cargamos las reglas desde la DB
+    cargarReglasPaginadas(1);
     
-    // Carga las actividades si es alumno
+    // Carga las actividades en la memoria si es alumno
     cargarActividades(token);
 });
 
 function actualizarPuntaje(puntos) {
-    console.log("Se ejecuta actualizarPuntaje con:", puntos); // ⭐ DEBUG
-
     puntaje += puntos;
-
     const puntajeDiv = document.getElementById("puntaje");
     if (puntajeDiv) {
         puntajeDiv.innerText = "Puntaje: " + puntaje;
     }
 }
 
+
 // Función para mostrar el Toast (Necesaria para dar feedback)
 function showToast(msg, ms = 3000) {
-    // ASUMIENDO que tienes un elemento con ID="toast" en tu HTML
     const toast = document.getElementById("toast"); 
-    if (!toast) {
-        console.log(`TOAST: ${msg}`); // Si no hay toast, al menos lo loguea
-        return;
-    }
+    if (!toast) return;
     toast.textContent = msg;
     toast.style.opacity = "1";
     toast.style.transform = "translateX(-50%) translateY(0)";
@@ -78,7 +78,6 @@ async function cargarActividades(token) {
         if (data.success) { 
         actividades = data.actividades;
         console.log("Actividades cargadas:", actividades);
-        mostrarPagina(1);
         
         } else {
             if (contenedor) {
@@ -94,123 +93,95 @@ async function cargarActividades(token) {
     }
 }
 
-function mostrarPagina(pagina) {
-    paginaActual = pagina;
-
-    // título nivel
-    const titulo = document.getElementById("nivelTitulo");
-    if (titulo) {
-        titulo.innerText = "Nivel " + pagina;
+//  función para traer las reglas reales de la DB
+async function cargarReglasPaginadas(pagina) {
+    const token = localStorage.getItem("authToken");
+    try {
+        const res = await fetch(`http://localhost:4000/api/alumno/reglas-paginadas?page=${pagina}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Dibujamos las cartas de reglas
+            renderizarReglasDB(data.reglas);
+            // Dibujamos la paginación de las reglas
+            renderPaginacionReglas(data.paginaActual, data.totalPaginas);
+        }
+    } catch (error) {
+        console.error("Error al cargar reglas:", error);
     }
-
-    // 👉 MOSTRAR REGLAS (no actividades)
-    mostrarReglas(pagina);
-
-    renderPaginacion();
 }
 
-function renderPaginacion() {
-    const contenedor = document.getElementById("paginacion");
-    if (!contenedor) return;
-
-    const totalPaginas = 3;
-
-    let html = "";
-
-    // Flecha anterior
-    if (paginaActual > 1) {
-        html += `<button onclick="mostrarPagina(${paginaActual - 1})">⬅</button>`;
-    }
-
-    // Números
-    for (let i = 1; i <= totalPaginas; i++) {
-        html += `
-            <button onclick="mostrarPagina(${i})"
-                style="
-                    margin:5px;
-                    padding:10px;
-                    ${i === paginaActual ? "background:#00aaff;color:white;" : ""}
-                ">
-                ${i}
-            </button>
-        `;
-    }
-
-    // Flecha siguiente
-    if (paginaActual < totalPaginas) {
-        html += `<button onclick="mostrarPagina(${paginaActual + 1})">➡</button>`;
-    }
-
-    contenedor.innerHTML = html;
-
-    // 🔥 CENTRAR
-    contenedor.style.textAlign = "center";
-}
-    
-function mostrarReglas(pagina) {
-    const contenedor = document.getElementById("activitiesList");
-
-    const reglasPorNivel = {
-        1: [
-            "Diptongo, triptongo y hiato",
-            "Tipos de palabras",
-            "Acento prosódico",
-            "Tildación de compuestas",
-            "Uso del punto y coma",
-            "Dos puntos, paréntesis y comillas",
-            "Signos de puntuación"
-        ],
-        2: [
-            "Uso de b",
-            "Uso de v",
-            "Uso de c y s",
-            "Uso de c y z",
-            "Uso de h",
-            "Uso de g y j",
-            "Uso de y, ll, rr y x "
-        ],
-        3: [
-            "Mayúsculas y Minúsculas",
-            " Homónimos y Parónimos",
-            "Usos del porque y sus variantes",
-            "Usos del adonde y sus variantes",
-            "Usos del asimismo y sus variantes",
-            "Usos del conque y sus variantes",
-        ]
-    };
-
+function renderizarReglasDB(reglas) {
+    const contenedor = document.getElementById("contenedor-reglas");
     contenedor.innerHTML = "";
 
-    reglasPorNivel[pagina].forEach((regla, index) => {
+    reglas.forEach(regla => {
         const div = document.createElement("div");
-        div.className = "actividad-card";
-
-    div.innerHTML = `
-    <h3>${regla}</h3>
-    <div class="card-btn">
-        <button onclick="abrirRegla(${index}, ${pagina})">Entrar</button>
-    </div>
-`;
-
+        div.className = "card-regla";
+        div.innerHTML = `
+            <h3>${regla.nombre}</h3>
+            <div class="card-btn">
+                <button onclick="seleccionarRegla(${regla.id}, '${regla.nombre}')">Entrar</button>
+            </div>
+        `;
         contenedor.appendChild(div);
     });
 }
 
-function abrirRegla(index, pagina) {
-    const reglaId = (pagina - 1) * 7 + (index + 1);
+function renderPaginacionReglas(actual, total) {
+    const contenedor = document.getElementById("paginacion-reglas");
+    if (!contenedor) return;
+    contenedor.innerHTML = `
+        <button onclick="cargarReglasPaginadas(${actual - 1})" ${actual === 1 ? 'disabled' : ''}>⬅</button>
+        <span>Página ${actual} de ${total}</span>
+        <button onclick="cargarReglasPaginadas(${actual + 1})" ${actual === total ? 'disabled' : ''}>➡</button>
+    `;
+}
 
-    const filtradas = actividades.filter(a => a.regla_id == reglaId);
+function seleccionarRegla(id, nombre) {
+    // 1. Ocultamos el bloque completo de reglas (grilla + paginación + subtítulo)
+    const seccionReglas = document.getElementById("seccion-seleccion-reglas");
+    if (seccionReglas) seccionReglas.style.display = "none";
+    
+    // 2. Mostramos el bloque completo de actividades
+    const seccionActividades = document.getElementById("seccion-actividades-dinamicas");
+    if (seccionActividades) seccionActividades.style.display = "block";
+    
+    // 3. Actualizamos el título con el nombre de la regla elegida
+    const titulo = document.getElementById("nivelTitulo");
+    if (titulo) titulo.innerText = nombre;
 
+    // 4. Filtramos las actividades que pertenecen a esta regla
+    const filtradas = actividades.filter(a => a.regla_id == id);
+    
+    // 5. Renderizamos las actividades en el contenedor
     mostrarActividades(filtradas);
 
-    // 🔥 botón volver dinámico
+    // 6. Creamos el botón "Volver" dinámicamente
     const contenedor = document.getElementById("activitiesList");
+    
+    // Limpiamos cualquier botón de volver previo si existiera (por seguridad)
+    const viejoBtn = document.querySelector(".btn-volver-dinamico");
+    if (viejoBtn) viejoBtn.remove();
 
-    const volverBtn = document.createElement("button");
-    volverBtn.innerText = "⬅ Volver";
-    volverBtn.onclick = () => mostrarReglas(pagina);
+    const btnVolver = document.createElement("button");
+    btnVolver.innerHTML = "⬅ Volver a las reglas";
+    btnVolver.className = "btn-nav btn-volver-dinamico"; 
+    btnVolver.style.marginBottom = "20px";
+    
+    btnVolver.onclick = () => {
+        // PROCESO INVERSO: Volver a la grilla 3x3
+        if (seccionReglas) seccionReglas.style.display = "block";
+        if (seccionActividades) seccionActividades.style.display = "none";
+        window.scrollTo(0, 0);
+    };
 
-    contenedor.prepend(volverBtn);
+    // Lo ponemos arriba de todo en la lista de actividades
+    contenedor.prepend(btnVolver);
+    
+    // 7. Scroll al inicio para que el alumno vea la actividad desde arriba
+    window.scrollTo(0, 0);
 }
 
 function mostrarActividades(activities) {
@@ -220,7 +191,7 @@ function mostrarActividades(activities) {
     contenedor.innerHTML = "";
 
     if (!activities || activities.length === 0) {
-        contenedor.innerHTML = "<p>No hay actividades disponibles.</p>";
+        contenedor.innerHTML = "<p>No hay actividades disponibles para esta regla.</p>";
         return;
     }
 
@@ -235,7 +206,7 @@ function mostrarActividades(activities) {
             contenidoHTML = "<p>Error: actividad sin contenido</p>";
         }
 
-        // 🧠 NUEVO: según tipo de actividad
+        // tipo de actividad
         else if (act.tipo === "multiple") {
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
@@ -253,7 +224,7 @@ function mostrarActividades(activities) {
             `;
         }
 
-         // 🟢 TEXTO
+         // TEXTO
         else if (act.tipo === "texto") {
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
@@ -262,23 +233,26 @@ function mostrarActividades(activities) {
             `;
         }
 
-        // 🟢 CLASIFICAR
+        //  CLASIFICAR
         else if (act.tipo === "clasificar") {
             contenidoHTML = `<p><strong>Clasificá:</strong></p>`;
+        
+            //Detecta automáticamente las opciones desde las respuestas
+        const opcionesUnicas = [...new Set(Object.values(act.respuestas))];
 
-            act.palabras.forEach(p => {
-                contenidoHTML += `
-                    <div>
-                        ${p}
-                        <select id="${p}-${activity.id}">
-                            <option value="">--</option>
-                            <option value="diptongo">Diptongo</option>
-                            <option value="hiato">Hiato</option>
-                            <option value="triptongo">Triptongo</option>
-                        </select>
-                    </div>
-                `;
-            });
+    act.palabras.forEach(p => {
+        contenidoHTML += `
+            <div>
+                ${p}
+                <select id="${p}-${activity.id}">
+                    <option value="">--</option>
+                    ${opcionesUnicas.map(op => `
+                        <option value="${op}">${op}</option>
+                    `).join("")}
+                </select>
+            </div>
+        `;
+    });
 
             contenidoHTML += `<button onclick="validarClasificar(${activity.id})">Validar</button>`;
         }
@@ -288,7 +262,7 @@ function mostrarActividades(activities) {
             contenidoHTML = `
                 <p>${activity.contenido || "Sin contenido"}</p>
                 <input type="text" id="respuesta-${activity.id}" placeholder="Escribe tu respuesta...">
-                <button onclick="corregirActividad('${activity.id}')">Corregir</button>
+                <button onclick="responderTexto('${activity.id}')">Responder</button>
             `;
         }
 
@@ -311,163 +285,126 @@ function responderMultiple(id, opcion) {
 //texto/completar
 function responderTexto(id) {
     const input = document.getElementById(`respuesta-${id}`);
-    const valor = input.value;
-
-    if (!valor) {
+    if (!input || !input.value.trim()) {
         showToast("Escribe una respuesta");
         return;
     }
-
-    validarRespuesta(id, valor);
+    validarRespuesta(id, input.value.trim());
 }
 
 function validarClasificar(id) {
     const actividad = actividades.find(a => a.id == id);
     const act = actividad.contenido;
+    const feedbackDiv = document.getElementById(`resultado-${id}`);
 
-    let correctas = 0;
+    let aciertos = 0;
+    let errorPorExceso = false;  // Marcó Diptongo donde no hay
+    let errorPorDefecto = false; // No marcó Diptongo donde sí hay
 
     act.palabras.forEach(p => {
-        const val = document.getElementById(`${p}-${id}`).value;
-        if (val === act.respuestas[p]) correctas++;
+        const selectElement = document.getElementById(`${p}-${id}`);
+        const respuestaAlumno = selectElement.value;
+        const respuestaCorrecta = act.respuestas[p];
+
+        if (respuestaAlumno === respuestaCorrecta) {
+            aciertos++;
+        } else {
+            // Lógica de pistas:
+            // Si el alumno puso "Diptongo" pero la respuesta era "No" (o similar)
+            if (respuestaAlumno !== "No" && respuestaAlumno !== "" && respuestaCorrecta === "No") {
+                errorPorExceso = true;
+            } 
+            // Si el alumno puso "No" o dejó vacío pero era "Diptongo"
+            else if ((respuestaAlumno === "No" || respuestaAlumno === "") && respuestaCorrecta !== "No") {
+                errorPorDefecto = true;
+            }
+        }
     });
 
-    const feedbackDiv = document.getElementById(`resultado-${id}`);
-
-    if (correctas === act.palabras.length) {
-        feedbackDiv.innerHTML = "✅ Todo correcto";
+    if (aciertos === act.palabras.length) {
+        feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold; margin-top: 10px;">✅ ¡Todo correcto! +10 puntos</p>`;
+        actualizarPuntaje(10);
+        showToast("¡Excelente!");
     } else {
-        feedbackDiv.innerHTML = "❌ Hay errores";
+        actualizarPuntaje(-5);
+        
+        // Construimos el mensaje de pistas pedagógicas
+        let mensajePista = `<div style="background: #222; padding: 15px; border-left: 5px solid #F44336; margin-top: 10px; border-radius: 8px;">
+                                <strong style="color: #F44336;">Hay errores en la clasificación:</strong><br><br>`;
+        
+        if (errorPorExceso) {
+            mensajePista += `<p style="color: #ccc; font-size: 0.95em; margin-bottom: 8px;">⚠️ <strong>Pista:</strong> Una de las palabras que marcaste NO tiene diptongo. Recordá que el diptongo es la unión de dos vocales en una misma sílaba.</p>`;
+        }
+        
+        if (errorPorDefecto) {
+            mensajePista += `<p style="color: #ccc; font-size: 0.95em;">⚠️ <strong>Pista:</strong> Te olvidaste de marcar una palabra que SÍ tiene diptongo. Buscá dónde hay vocales juntas que no se separan.</p>`;
+        }
+
+        mensajePista += `</div>`;
+        
+        feedbackDiv.innerHTML = mensajePista;
+        showToast("Revisa las pistas y vuelve a intentarlo.");
     }
 }
 
-//validación inteligente
 async function validarRespuesta(id, respuesta) {
     const token = localStorage.getItem("authToken");
-
-    const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ respuesta_alumno: respuesta })
-    });
-
-    const data = await res.json();
     const feedbackDiv = document.getElementById(`resultado-${id}`);
 
-    if (data.success) {
-        feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
-        showToast("Correcto");
-    } else {
-        const teoria = data.errorDetails?.teoria || "Sin explicación";
-
-        feedbackDiv.innerHTML = `
-            <p style="color:red;">❌ Incorrecto</p>
-            <div style="background:#333;padding:10px;margin-top:5px;">
-                <strong>Regla:</strong>
-                <p>${teoria}</p>
-            </div>
-        `;
-
-        showToast("Incorrecto");
-    }
-}
-async function validarRespuesta(id, respuesta) {
-    const token = localStorage.getItem("authToken");
-
-    const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ respuesta_alumno: respuesta })
-    });
-
-    const data = await res.json();
-    const feedbackDiv = document.getElementById(`resultado-${id}`);
-
-    if (data.success) {
-        feedbackDiv.innerHTML = `<p style="color: green;">✅ Correcto</p>`;
-        showToast("Correcto");
-
-        actualizarPuntaje(10); // ⭐ AGREGAR ESTO
-    } else {
-        const teoria = data.errorDetails?.teoria || "Sin explicación";
-
-        feedbackDiv.innerHTML = `
-            <p style="color:red;">❌ Incorrecto</p>
-            <div style="background:#333;padding:10px;margin-top:5px;">
-                <strong>Regla:</strong>
-                <p>${teoria}</p>
-            </div>
-        `;
-
-        showToast("Incorrecto");
-
-        actualizarPuntaje(-5); // ⭐ OPCIONAL
-    }
-}
-
-
-
-// Función corregir Actividad // 
-async function corregirActividad(actividadId) {
-    const token = localStorage.getItem("authToken");
-    const inputRespuesta = document.getElementById(`respuesta-${actividadId}`);
-    const feedbackDiv = document.getElementById(`resultado-${actividadId}`);
-    const respuesta_alumno = inputRespuesta ? inputRespuesta.value : '';
-
-    if (!respuesta_alumno) {
-        showToast("Escribe una respuesta primero.");
+    // SEGURIDAD, Validación de entrada vacía
+    if (!respuesta || respuesta.trim() === "") {
+        showToast("Escribe o selecciona una respuesta.");
         return;
     }
 
-    // Limpiar feedback anterior
-    feedbackDiv.innerHTML = '<p style="color: #00aaff;">Corrigiendo...</p>';
-    
+    // FEEDBACK DE CARGA, Avisamos al usuario que el proceso inició
+    feedbackDiv.innerHTML = '<p style="color: #00aaff; font-weight: bold; margin-top: 10px;">Corrigiendo...</p>';
+
     try {
-        const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${actividadId}`, {
+        // CONEXIÓN AL BACKEND
+        const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ respuesta_alumno })
+            body: JSON.stringify({ respuesta_alumno: respuesta })
         });
 
         const data = await res.json();
-        
-    if (data.success) {
-    // Respuesta Correcta
-    feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold;">${data.message}</p>`;
-    showToast(data.message);
-    actualizarPuntaje(10); // ⭐ SUMA PUNTOS
-    } else {
-    actualizarPuntaje(-5);// Respuesta Incorrecta: Muestra el error y la teoría
+
+        if (data.success) {
+            // ESTÉTICA y mensaje del servidor
+            feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold; margin-top: 10px;">✅ ¡Correcto! </p>`;
+            showToast("¡Muy bien!");
+            
+            //  LÓGICA DE PUNTAJE: +10 puntos
+            actualizarPuntaje(10); 
+        } else {
+            // ESTÉTICA ERROR y teoría detallada
             const teoria = (data.errorDetails && data.errorDetails.teoria) 
                         ? data.errorDetails.teoria 
-                        : "No hay teoría gramatical específica para este error.";
+                        : "Revisa la teoria correspondiente.";
             
-            feedbackDiv.innerHTML = `
-                <p style="color: #F44336; font-weight: bold;">${data.message}</p> 
-                <div style="background: #333; padding: 10px; border-left: 5px solid #F44336; margin-top: 10px; border-radius: 4px;">
-                    <strong>📚 Regla Gramatical Asociada:</strong>
-                    <p>${teoria}</p>
-                </div>
-            `;
+        feedbackDiv.innerHTML = `
+        <p style="color: #F44336; font-weight: bold; margin-top: 10px;">❌ Incorrecto</p> 
+        <div style="background: #222; padding: 15px; border-left: 5px solid #F44336; margin-top: 10px; border-radius: 8px;">
+            <strong style="color: #fff;">Ayuda:</strong>
+            <p style="color: #ccc; font-size: 0.95em;">${teoria}</p>
+        </div>
+    `;
             showToast("Respuesta incorrecta. Revisa la teoría.");
+            
+            // LÓGICA DE PUNTAJE: -5 puntos
+            actualizarPuntaje(-5);
         }
     } catch (err) {
+        //  SEGURIDAD, Manejo de errores de red o servidor caído
         console.error("Error de red al corregir:", err);
-        feedbackDiv.innerHTML = `<p style="color: #F44336;">Error de conexión con el servidor. (Revisa el backend)</p>`;
+        feedbackDiv.innerHTML = `<p style="color: #F44336; margin-top: 10px;">⚠️ Error de conexión con el servidor.</p>`;
         showToast("Error de conexión al servidor.");
     }
 }
-// 
-
 
 function cerrarSesion() {
     localStorage.removeItem("authToken");

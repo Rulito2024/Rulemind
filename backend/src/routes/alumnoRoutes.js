@@ -4,7 +4,44 @@ const pool = require("../db");
 
 const router = express.Router();
 
-// 1. Obtener todas las actividades disponibles
+// ============================================================
+// Obtener reglas gramaticales paginadas (6 por página)
+// ============================================================
+router.get("/reglas-paginadas", authMiddleware(["alumno"]), async (req, res) => {
+    try {
+        // Capturamos la página (ej: ?page=1). Si no existe, por defecto es 1.
+        const pagina = parseInt(req.query.page) || 1;
+        const limite = 6; 
+        const offset = (pagina - 1) * limite;
+
+        // Consulta a la tabla 'reglas' usando el orden que creamos
+        const [rows] = await pool.query(
+            "SELECT id, nombre, teoria, palabra_clave FROM reglas ORDER BY orden ASC, id ASC LIMIT ? OFFSET ?",
+            [limite, offset]
+        );
+
+        // Obtenemos el total para informar al frontend
+        const [[{ total }]] = await pool.query("SELECT COUNT(*) as total FROM reglas");
+
+        res.json({
+            success: true,
+            reglas: rows,
+            paginaActual: pagina,
+            totalPaginas: Math.ceil(total / limite) || 11,
+            totalReglas: total
+        });
+
+    } catch (err) {
+        console.error("Error al obtener reglas paginadas:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Error al cargar el panel de reglas" 
+        });
+    }
+});
+
+
+//  Obtener todas las actividades disponibles
 router.get("/actividades", authMiddleware(["alumno", "Profesor"]), async (req, res) => {
     try {
         // Selecciona actividades que estén publicadas (publicado = 1/TRUE)
@@ -12,16 +49,14 @@ router.get("/actividades", authMiddleware(["alumno", "Profesor"]), async (req, r
             "SELECT id, titulo, descripcion, contenido, archivo, regla_id FROM materiales WHERE tipo = 'actividades' AND publicado = 1 ORDER BY fecha DESC"
         );
 
-        // ⭐ PARSEAR el contenido de cada actividad (LONGTEXT → JSON)
+        //  PARSEAR el contenido de cada actividad (LONGTEXT → JSON)
         const actividadesParseadas = rows.map(actividad => {
-            try {
-                // Solo parsear si contenido no está vacío
-                if (actividad.contenido) {
+        if (actividad.contenido && typeof actividad.contenido === 'string') {
+                try {
                     actividad.contenido = JSON.parse(actividad.contenido);
+                } catch (e) {
+                    console.error(`Error parseando actividad ID ${actividad.id}`);
                 }
-            } catch (e) {
-                console.error(`Error al parsear contenido de actividad ID ${actividad.id}:`, e);
-                // Mantener el contenido original si falla el parsing
             }
             return actividad;
         });
@@ -31,9 +66,9 @@ router.get("/actividades", authMiddleware(["alumno", "Profesor"]), async (req, r
         console.error("Error al obtener actividades:", err);
         res.status(500).json({ success: false, message: "Error al obtener actividades" });
     }
-});
+});   
 
-// 2. Obtener una actividad especifica por ID
+// Obtener una actividad especifica por ID
 router.get("/actividades/:id", authMiddleware(["alumno", "Profesor"]), async (req, res) => {
     try {
         const { id } = req.params;
@@ -48,27 +83,22 @@ router.get("/actividades/:id", authMiddleware(["alumno", "Profesor"]), async (re
 
         const actividad = rows[0];
 
-        // ⭐ PARSEAR el contenido (LONGTEXT → JSON) - ESTO ES LO VITAL
-        try {
-            if (actividad.contenido) {
+        // PARSEAR el contenido (LONGTEXT → JSON)
+    if (actividad.contenido && typeof actividad.contenido === 'string') {
+            try {
                 actividad.contenido = JSON.parse(actividad.contenido);
+            } catch (e) {
+                console.error("Error al parsear contenido");
             }
-        } catch (e) {
-            console.error(`Error al parsear contenido de actividad ID ${id}:`, e);
-            return res.status(500).json({ 
-                success: false, 
-                message: "Error en el formato del contenido de la actividad" 
-            });
         }
 
         res.json({ success: true, actividad });
     } catch (err) {
-        console.error("Error al obtener actividad:", err);
         res.status(500).json({ success: false, message: "Error al obtener la actividad" });
     }
 });
 
-// 3. Evaluar la respuesta del alumno (Lógica de corrección y regla gramatical)
+// Evaluar la respuesta del alumno (Lógica de corrección y regla gramatical)
 router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req, res) => {
     const { id } = req.params;
     const { respuesta_alumno } = req.body;
@@ -81,7 +111,7 @@ router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req,
         let teoriaTexto = null;
         // Obtener la respuesta correcta y la regla asociada
         const [rows] = await pool.query(
-            "SELECT respuesta_correcta, regla_id FROM materiales WHERE id = ? AND tipo = 'actividades' AND publicado = 1", 
+            "SELECT respuesta_correcta, regla_id, contenido FROM materiales WHERE id = ? AND tipo = 'actividades' AND publicado = 1", 
             [id]
         );
 
@@ -90,17 +120,77 @@ router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req,
         }
 
         const actividad = rows[0];
-        // Normalización: elimina espacios extra y convierte a minúsculas
-        const respuesta_correcta = actividad.respuesta_correcta ? actividad.respuesta_correcta.trim().toLowerCase() : '';
+        const respuesta_correcta = (actividad.respuesta_correcta || '').trim().toLowerCase();
         const respuesta_enviada = respuesta_alumno.trim().toLowerCase();
 
-        // Evaluación de la respuesta
-        if (respuesta_enviada === respuesta_correcta && respuesta_correcta !== '') {
+        // Utilidades de validación
+        const contarSilabas = (palabra) => (palabra.match(/[^aeiouáéíóúü]*[aeiouáéíóúü]+/g) || []).length;
+        const tieneDiptongo = (palabra) => /(ai|au|ei|eu|oi|ou|ia|ie|io|ua|ue|uo|iu|ui)/i.test(palabra);
+
+// =========================================
+        // 🔹 BLOQUE DE VALIDACIONES DE ÉXITO (Completo)
+        // =========================================
+        
+        let esCorrecto = false;
+
+        // 1. VALIDACIÓN "CONTIENE:"
+        if (respuesta_correcta.startsWith("contiene:")) {
+            const patron = respuesta_correcta.split(":")[1].trim();
+            if (respuesta_enviada.includes(patron)) esCorrecto = true;
+        } 
+        
+        // 2. VALIDACIÓN FLEXIBLE PARA DIPTONGOS
+        else if (respuesta_correcta === "flexible_diptongo") {
+            if (contarSilabas(respuesta_enviada) === 3 && tieneDiptongo(respuesta_enviada)) esCorrecto = true;
+        }
+        
+        // 3. VALIDACIÓN FLEXIBLE PARA TIPO DE PALABRAS (auto:)
+        else if (respuesta_correcta.startsWith("auto:")) {
+            const tipo = respuesta_correcta.split(":")[1];
+            const n = contarSilabas(respuesta_enviada);
+            if ((tipo === "bisilaba" && n === 2) || 
+                (tipo === "monosilaba" && n === 1) || 
+                (tipo === "trisilaba" && n === 3) || 
+                (tipo === "polisilaba" && n >= 4)) esCorrecto = true;
+        }
+        
+        // 4. VALIDACIÓN DESDE JSON EN CONTENIDO
+        else if (actividad.contenido) {
+            try {
+                const cont = typeof actividad.contenido === 'string' ? JSON.parse(actividad.contenido) : actividad.contenido;
+                if (cont.validacion === "polisilaba" && contarSilabas(respuesta_enviada) >= 4) {
+                    esCorrecto = true;
+                }
+            } catch (e) { /* Error silencioso en el parseo */ }
+        }
+
+        // 5. VALIDACIÓN NORMAL (Igualdad directa)
+        // Se ejecuta si ninguna de las anteriores marcó éxito o si no tienen prefijos
+        if (!esCorrecto && respuesta_enviada === respuesta_correcta && respuesta_correcta !== '') {
+            esCorrecto = true;
+        }
+
+        // Si después de pasar por todos los filtros esCorrecto es true, enviamos respuesta
+        if (esCorrecto) {
             return res.json({ success: true, message: "¡Respuesta Correcta! ✅" });
         }
 
-        // Respuesta Incorrecta: Obtener la teoría si existe un regla_id
-        if (actividad.regla_id) {
+        // =========================================
+        // 🔹 BLOQUE DE ERROR (Si llega aquí es porque falló)
+        // =========================================
+        
+        // 2. LÓGICA PARA EL ID 3 (Mensaje corto)
+        if (id == "3") {
+            teoriaTexto = "Incorrecto ya que las vocales se clasifican en: abiertas y son la a, e y la o y cerradas las cuales son la i y la u.";
+        }
+
+        // --- MENSAJE PARA ACTIVIDAD ID: 4 (La de la nueva imagen) ---
+        else if (id == "4") {
+            teoriaTexto = "Es incorrecto ya que el diptongo es la unión de dos vocales en una misma sílaba y porque las vocales se clasifican en: abiertas y son la a, e y la o y cerradas las cuales son la i y la u.";
+        }
+
+        // Obtener teoría si hay regla asociada
+        else if (actividad.regla_id) {
             const [reglaRows] = await pool.query(
                 "SELECT teoria FROM reglas WHERE id = ?", 
                 [actividad.regla_id]
@@ -110,12 +200,11 @@ router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req,
             }
         }
 
-        // Enviar respuesta de error con la teoría
         res.json({ 
             success: false, 
             message: "Respuesta Incorrecta. Vuelve a intentarlo.",
             errorDetails: {
-                teoria: teoriaTexto || "No hay teoría gramatical específica para este error."
+                teoria: teoriaTexto || "Revise la regla gramatical."
             }
         });
 
@@ -125,62 +214,31 @@ router.post("/actividades/corregir/:id", authMiddleware(["alumno"]), async (req,
     }
 });
 
-router.post("/responder", async (req, res) => {
-    const { actividad_id, respuesta } = req.body;
-    const alumno_id = req.user.id; // si usás auth
-
+router.post ("/responder", authMiddleware(["alumno"]), async (req, res) => {
+const { actividad_id, respuesta } = req.body;
     try {
-        // 1. Obtener actividad
-        const [rows] = await pool.query(
-            "SELECT respuesta_correcta FROM materiales WHERE id = ?",
-            [actividad_id]
-        );
+        const [rows] = await pool.query("SELECT respuesta_correcta FROM materiales WHERE id = ?", [actividad_id]);
+        if (rows.length === 0) return res.status(404).json({ message: "Actividad no encontrada" });
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Actividad no encontrada" });
-        }
-
-        const correcta = rows[0].respuesta_correcta;
-
-        // 2. Validar
-        const esCorrecta = respuesta === correcta;
-
-        // 3. Puntaje
+        const esCorrecta = respuesta.trim().toLowerCase() === rows[0].respuesta_correcta.trim().toLowerCase();
         const puntaje = esCorrecta ? 10 : 0;
 
-        // 4. Guardar resultado
         await pool.query(
             "INSERT INTO resultados (alumno_id, actividad_id, respuesta_usuario, es_correcta, puntaje) VALUES (?, ?, ?, ?, ?)",
-            [alumno_id, actividad_id, respuesta, esCorrecta, puntaje]
+            [req.user.id, actividad_id, respuesta, esCorrecta, puntaje]
         );
 
-        res.json({
-            success: true,
-            esCorrecta,
-            puntaje
-        });
-
+        res.json({ success: true, esCorrecta, puntaje });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ message: "Error al responder" });
     }
-});
+}); 
 
-router.get("/puntaje", async (req, res) => {
-    const alumno_id = req.user.id; // si usás auth
-
+router.get("/puntaje", authMiddleware(["alumno"]), async (req, res) => {
     try {
-        const [rows] = await pool.query(
-            "SELECT SUM(puntaje) AS total FROM resultados WHERE alumno_id = ?",
-            [alumno_id]
-        );
-
-        res.json({
-            total: rows[0].total || 0
-        });
-
+        const [rows] = await pool.query("SELECT SUM(puntaje) AS total FROM resultados WHERE alumno_id = ?", [req.user.id]);
+        res.json({ total: rows[0].total || 0 });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ message: "Error al obtener puntaje" });
     }
 });
