@@ -12,14 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.responderTexto = responderTexto;
     window.validarClasificar = validarClasificar;
 
-
     if (!token) {
         // Si no hay token, lo mando de vuelta al login
         window.location.href = "loguearse.html";
         return
     } 
-    
-    // Si es profesor o tiene otro rol, redirigir o mostrar advertencia
+
+       // Si es profesor o tiene otro rol, redirigir o mostrar advertencia
     if (role !== "alumno") {
         console.warn("No tienes los permisos para ver este contenido.");
         document.body.innerHTML = "<h2> No tienes permisos para acceder a esta sección.</h2>";
@@ -31,9 +30,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // cargamos las reglas desde la DB
     cargarReglasPaginadas(1);
     
-    // Carga las actividades en la memoria si es alumno
-    cargarActividades(token);
+    // 2. Cargamos las actividades y, al terminar, verificamos el estado
+    cargarActividades(token).then(() => {
+        verificarEstadoRegla();
+    });
 });
+    
+
 
 function actualizarPuntaje(puntos) {
     puntaje += puntos;
@@ -42,7 +45,6 @@ function actualizarPuntaje(puntos) {
         puntajeDiv.innerText = "Puntaje: " + puntaje;
     }
 }
-
 
 // Función para mostrar el Toast (Necesaria para dar feedback)
 function showToast(msg, ms = 3000) {
@@ -57,9 +59,10 @@ function showToast(msg, ms = 3000) {
     }, ms);
 }
 
-
 async function cargarActividades(token) {
-    const contenedor = document.getElementById("activitiesList");
+const contenedor = document.getElementById("activitiesList");
+    
+    // Mantenemos el mensaje de carga inicial
     if (contenedor) {
         contenedor.innerHTML = "<p class='loading-message'>Cargando actividades disponibles...</p>";
     }
@@ -74,21 +77,43 @@ async function cargarActividades(token) {
         });
 
         const data = await res.json();
-        
+        console.log("Respuesta completa del servidor:", data); // DEBUG original
+
         if (data.success) { 
-        actividades = data.actividades;
-        console.log("Actividades cargadas:", actividades);
-        
+            actividades = data.actividades;
+            console.log("Actividades cargadas:", actividades); // DEBUG original
+            
+            // Sincronización de puntaje con el backend
+            if (data.hasOwnProperty('puntajeTotal')) {
+                puntaje = data.puntajeTotal;
+                console.log("Puntaje actualizado a:", puntaje);
+            } else {
+                console.warn("El backend NO envió puntajeTotal. Revisa alumnoRoutes.js");
+                puntaje = 0; 
+            }
+
+            // Actualización del DOM del puntaje
+            const puntajeDiv = document.getElementById("puntaje");
+            if (puntajeDiv) {
+                puntajeDiv.innerText = "Puntaje: " + puntaje;
+            }
+
+            // Limpiamos el mensaje de carga si hay éxito
+            if (contenedor) {
+                contenedor.innerHTML = ""; 
+            }
+
         } else {
+            // Este es el bloque que recuperamos de tu código
             if (contenedor) {
                 contenedor.innerHTML = "<p class='loading-message'> No hay actividades cargadas o ha ocurrido un error.</p>";
             }
-            console.error("Error del servidor al cargar actividades:", data.message);
+            console.error("Error del servidor:", data.message);
         }
     } catch (error) {
-        console.error("Error de red al cargar actividades:", error);
+        console.error("Error de red:", error);
         if (contenedor) {
-            contenedor.innerHTML = "<p>Error de conexión al servidor.</p>";
+            contenedor.innerHTML = "<p class='loading-message'>Error de conexión al servidor.</p>";
         }
     }
 }
@@ -140,6 +165,9 @@ function renderPaginacionReglas(actual, total) {
 }
 
 function seleccionarRegla(id, nombre) {
+    // GUARDAR EN STORAGE para que aguante el F5
+    localStorage.setItem("reglaActualId", id);
+    localStorage.setItem("reglaActualNombre", nombre);
     // 1. Ocultamos el bloque completo de reglas (grilla + paginación + subtítulo)
     const seccionReglas = document.getElementById("seccion-seleccion-reglas");
     if (seccionReglas) seccionReglas.style.display = "none";
@@ -171,6 +199,8 @@ function seleccionarRegla(id, nombre) {
     btnVolver.style.marginBottom = "20px";
     
     btnVolver.onclick = () => {
+        localStorage.removeItem("reglaActualId");
+        localStorage.removeItem("reglaActualNombre");
         // PROCESO INVERSO: Volver a la grilla 3x3
         if (seccionReglas) seccionReglas.style.display = "block";
         if (seccionActividades) seccionActividades.style.display = "none";
@@ -199,38 +229,40 @@ function mostrarActividades(activities) {
         const div = document.createElement("div");
         div.className = "actividad-card";
 
-        let contenidoHTML = "";
-
-        const act = activity.contenido;
-        if (!act) {
-            contenidoHTML = "<p>Error: actividad sin contenido</p>";
+        // --- LÓGICA DE BLOQUEO SI YA ESTÁ COMPLETADA ---
+        if (activity.completada === 1) {
+            div.innerHTML = `
+                <h3>${activity.titulo || "Actividad"}</h3>
+                <p style="color: #4CAF50; font-weight: bold; background: rgba(76, 175, 80, 0.1); padding: 10px; border-radius: 5px; border-left: 5px solid #4CAF50;">
+                    ✅ Ya has aprobado esta actividad.
+                </p>
+                <button disabled style="background: #555; cursor: not-allowed; opacity: 0.7;">Completada</button>
+            `;
+            contenedor.appendChild(div);
+            return; // Saltamos el resto de la lógica para esta tarjeta
         }
 
-        // tipo de actividad
-        else if (act.tipo === "multiple") {
+        // --- LÓGICA NORMAL (Si no está completada) ---
+        let contenidoHTML = "";
+        const act = activity.contenido;
+
+        if (!act) {
+            contenidoHTML = "<p>Error: actividad sin contenido</p>";
+        } else if (act.tipo === "multiple") {
+
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
                 ${act.opciones.map(op => `
                     <button onclick="responderMultiple(${activity.id}, '${op}')">${op}</button>
                 `).join("")}
             `;
-        }
-
-        else if (act.tipo === "completar") {
+        } else if (act.tipo === "completar" || act.tipo === "texto") {
             contenidoHTML = `
                 <p><strong>${act.pregunta}</strong></p>
                 <input type="text" id="respuesta-${activity.id}">
                 <button onclick="responderTexto(${activity.id})">Responder</button>
             `;
-        }
 
-         // TEXTO
-        else if (act.tipo === "texto") {
-            contenidoHTML = `
-                <p><strong>${act.pregunta}</strong></p>
-                <input type="text" id="respuesta-${activity.id}">
-                <button onclick="responderTexto(${activity.id})">Responder</button>
-            `;
         }
 
         //  CLASIFICAR
@@ -239,33 +271,33 @@ function mostrarActividades(activities) {
         
             //Detecta automáticamente las opciones desde las respuestas
         const opcionesUnicas = [...new Set(Object.values(act.respuestas))];
-
-    act.palabras.forEach(p => {
-        contenidoHTML += `
-            <div>
-                ${p}
-                <select id="${p}-${activity.id}">
-                    <option value="">--</option>
-                    ${opcionesUnicas.map(op => `
-                        <option value="${op}">${op}</option>
-                    `).join("")}
-                </select>
-            </div>
-        `;
-    });
+        act.palabras.forEach(p => {
+                contenidoHTML += `
+                    <div style="margin-bottom: 8px;">
+                        <span>${p}</span>
+                        <select id="${p}-${activity.id}">
+                            <option value="">--</option>
+                            ${opcionesUnicas.map(op => `
+                                <option value="${op}">${op}</option>
+                            `).join("")}
+                        </select>
+                    </div>
+                `;
+            });
 
             contenidoHTML += `<button onclick="validarClasificar(${activity.id})">Validar</button>`;
-        }
-
+        } 
+        
+        // --- CASO POR DEFECTO (Si no coincide ningún tipo) ---
         else {
-    
             contenidoHTML = `
-                <p>${activity.contenido || "Sin contenido"}</p>
+                <p>${activity.descripcion || "Sin descripción"}</p>
                 <input type="text" id="respuesta-${activity.id}" placeholder="Escribe tu respuesta...">
-                <button onclick="responderTexto('${activity.id}')">Responder</button>
+                <button onclick="responderTexto(${activity.id})">Responder</button>
             `;
         }
 
+        // --- ARMADO FINAL DE LA CARD (Sin bloques huérfanos) ---
         div.innerHTML = `
             <h3>${activity.titulo || "Actividad"}</h3>
             <p>${activity.descripcion || ""}</p>
@@ -308,13 +340,11 @@ function validarClasificar(id) {
 
         if (respuestaAlumno === respuestaCorrecta) {
             aciertos++;
-        } else {
-            // Lógica de pistas:
-            // Si el alumno puso "Diptongo" pero la respuesta era "No" (o similar)
+    } else {
+            // NUEVO: Lógica de pistas refinada
             if (respuestaAlumno !== "No" && respuestaAlumno !== "" && respuestaCorrecta === "No") {
                 errorPorExceso = true;
             } 
-            // Si el alumno puso "No" o dejó vacío pero era "Diptongo"
             else if ((respuestaAlumno === "No" || respuestaAlumno === "") && respuestaCorrecta !== "No") {
                 errorPorDefecto = true;
             }
@@ -322,8 +352,7 @@ function validarClasificar(id) {
     });
 
     if (aciertos === act.palabras.length) {
-        feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold; margin-top: 10px;">✅ ¡Todo correcto! +10 puntos</p>`;
-        actualizarPuntaje(10);
+        validarRespuesta(id, "clasificacion_correcta_trigger");
         showToast("¡Excelente!");
     } else {
         actualizarPuntaje(-5);
@@ -352,16 +381,17 @@ async function validarRespuesta(id, respuesta) {
     const feedbackDiv = document.getElementById(`resultado-${id}`);
 
     // SEGURIDAD, Validación de entrada vacía
-    if (!respuesta || respuesta.trim() === "") {
+    if (!respuesta || (typeof respuesta === "string" && respuesta.trim() === "")) {
         showToast("Escribe o selecciona una respuesta.");
-        return;
+        return; 
     }
 
-    // FEEDBACK DE CARGA, Avisamos al usuario que el proceso inició
-    feedbackDiv.innerHTML = '<p style="color: #00aaff; font-weight: bold; margin-top: 10px;">Corrigiendo...</p>';
+    // 2. Feedback visual inmediato de "Cargando"
+    if (feedbackDiv) {
+        feedbackDiv.innerHTML = '<p style="color: #00aaff;">Verificando respuesta...</p>';
+    }
 
     try {
-        // CONEXIÓN AL BACKEND
         const res = await fetch(`http://localhost:4000/api/alumno/actividades/corregir/${id}`, {
             method: "POST",
             headers: {
@@ -374,40 +404,54 @@ async function validarRespuesta(id, respuesta) {
         const data = await res.json();
 
         if (data.success) {
-            // ESTÉTICA y mensaje del servidor
-            feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold; margin-top: 10px;">✅ ¡Correcto! </p>`;
-            showToast("¡Muy bien!");
-            
-            //  LÓGICA DE PUNTAJE: +10 puntos
-            actualizarPuntaje(10); 
+            feedbackDiv.innerHTML = `<p style="color: #4CAF50; font-weight: bold;">✅ ¡Correcto!</p>`;
+            showToast("¡Correcto! Actividad guardada.");
+            actualizarPuntaje(10);
+
+            //  ACTUALIZACIÓN LOCAL:
+            // Buscamos la actividad en el array global y la marcamos como completada
+            const index = actividades.findIndex(a => a.id == id);
+            if (index !== -1) {
+                actividades[index].completada = 1;
+            }
+
+            // Podés hacer que después de 2 segundos se bloquee la tarjeta automáticamente
+            setTimeout(() => {
+                // Volvemos a filtrar las actividades de la regla actual para que se redibuje la lista bloqueada
+                const reglaId = actividades[index].regla_id;
+                const filtradas = actividades.filter(a => a.regla_id == reglaId);
+                mostrarActividades(filtradas);
+            }, 2000);
+
         } else {
-            // ESTÉTICA ERROR y teoría detallada
-            const teoria = (data.errorDetails && data.errorDetails.teoria) 
-                        ? data.errorDetails.teoria 
-                        : "Revisa la teoria correspondiente.";
-            
-        feedbackDiv.innerHTML = `
-        <p style="color: #F44336; font-weight: bold; margin-top: 10px;">❌ Incorrecto</p> 
-        <div style="background: #222; padding: 15px; border-left: 5px solid #F44336; margin-top: 10px; border-radius: 8px;">
-            <strong style="color: #fff;">Ayuda:</strong>
-            <p style="color: #ccc; font-size: 0.95em;">${teoria}</p>
-        </div>
-    `;
-            showToast("Respuesta incorrecta. Revisa la teoría.");
-            
-            // LÓGICA DE PUNTAJE: -5 puntos
+            const teoria = data.errorDetails?.teoria || "Revisa la regla ortográfica e intenta de nuevo.";
+            feedbackDiv.innerHTML = `
+            <div style="background: #222; padding: 12px; margin-top: 10px; border-radius: 8px; border-left: 4px solid #F44336;">
+                    <strong style="color: #F44336;">❌ Incorrecto</strong>
+                    <p style="color: #ccc; font-size: 0.9em; margin-top: 5px;"><strong>Recordá:</strong> ${teoria}</p>
+                </div>
+            `;
+            showToast("Incorrecto");
             actualizarPuntaje(-5);
         }
-    } catch (err) {
-        //  SEGURIDAD, Manejo de errores de red o servidor caído
-        console.error("Error de red al corregir:", err);
-        feedbackDiv.innerHTML = `<p style="color: #F44336; margin-top: 10px;">⚠️ Error de conexión con el servidor.</p>`;
-        showToast("Error de conexión al servidor.");
+    } catch (error) {
+        console.error("Error al validar:", error);
+        showToast("Error de conexión");
+    }
+}
+
+function verificarEstadoRegla() {
+    const guardadoId = localStorage.getItem("reglaActualId");
+    const guardadoNombre = localStorage.getItem("reglaActualNombre");
+
+    if (guardadoId && guardadoNombre) {
+        seleccionarRegla(guardadoId, guardadoNombre);
     }
 }
 
 function cerrarSesion() {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userRole");
+    // NUEVO: Limpia absolutamente todo el almacenamiento local por seguridad
+    localStorage.clear(); 
+    // SE MANTIENE: Redirección al login
     window.location.href = "loguearse.html";
 }

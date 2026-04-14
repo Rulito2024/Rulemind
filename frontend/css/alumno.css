@@ -1,206 +1,62 @@
-/* Estilos generales para el panel del alumno */
+/* ============================================================
+ESTILOS GENERALES Y LAYOUT
+   ============================================================ */
 body {
     font-family: Arial, sans-serif;
     background-color: #111;
     color: #fff;
     margin: 0;
     padding: 10px;
-    min-height: 100vh; /* Ocupa al menos la altura de la vista */
-box-sizing: border-box;
+    min-height: 100vh;
+    box-sizing: border-box;
 }
 
-/* Contenedor principal para centrar el contenido */
 .panel-wrapper {
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    padding: 0 15px;   /* Margen interno para que el contenido no toque los bordes del celu */
+    padding: 0 15px;
     box-sizing: border-box;
 }
 
-/* Centrar el título y el contenido */
 .header-container {
     width: 100%;
-    text-align: center; /* Centra el texto dentro del contenedor */
+    text-align: center;
     margin-bottom: 10px;
 }
 
-/* Estilo para el título */
 .main-title {
     color: #00aaff;
     font-size: 1.8em;
     margin-bottom: 10px;
 }
 
-/* Estilo para los mensajes */
-.activity-container p, 
-.loading-message {
-    text-align: center;
-    font-size: 1.1em;
-    color: #ccc;
-    margin-top: 5px; /* Ajusta la separación del título */
-}
-
-/* Estilo para cada tarjeta de actividad */
-.actividad-card {
-    background: #222;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
-    margin: 10px auto;
-    width: 100%;
-    max-width: 700px;
-    text-align: left;
-    box-sizing: border-box;
-}
-
-.actividad-card h3 {
-    text-align: center;
-    margin-top: 0;
-    color: #00aaff;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-    font-size: 1.2em;
-}
-
-/* Estilos para el input de respuesta */
-.respuesta-input {
-    width: 100%;
-    background: #1a1a1a;
-    color: white;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-sizing: border-box;
-}
-
-/* Controles de paginación específicos para reglas */
-.paginacion-reglas {
-   display: flex;            /* Activa el modo flexible */
-    justify-content: center;  /* Centra el contenido horizontalmente */
-    align-items: center;      /* Alinea verticalmente flechas y texto */
-    gap: 15px;                /* Espacio entre flechas y el número de página */
-    margin: 20px auto;        /* Margen arriba/abajo y centrado automático */
-    width: 100%;              /* Que ocupe todo el ancho para poder centrar */
-}
-
-/* Opcional: para que los botones se vean mejor */
-.paginacion-reglas button {
-    background-color: #333;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.paginacion-reglas button:hover:not(:disabled) {
-    background-color: #00aaff;
-}
-
-.paginacion-reglas button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-#paginacion-actividades {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: 15px;
-    margin-bottom: 15px; /* esto lo sube respecto al botón */
-}
-
-.card-btn {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
-}
-
-#paginacion button {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 6px;
-    background: #222;
-    color: white;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.paginacion button:hover {
-    background: #00aaff;
-}
-
-#paginacion{
-    width:100%;
-    display: flex;
-    justify-content: center;}
-
-.actividad-card:hover {
-    transform: scale(1.02);
-    transition: 0.2s;
-    box-shadow: 0 0 15px rgba(0,170,255,0.3);
-}
-
-/* -------------------------------------- */
-/* BOTÓN CERRAR SESIÓN (Mismo estilo que profesor) */
-/* -------------------------------------- */
-.logout-container-alumno {
-    width: 100%;
-    text-align: center;
-    padding: 20px 0;
-}
-
-#logoutBtnAlumno {
-    padding: 8px 25px;
-    font-size: 1em;
-    background: crimson; 
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-#logoutBtnAlumno:hover {
-    background: darkred;
-}
-
-/* ==========================
-CARTAS DE REGLAS GRAMATICALES
-============================*/
-
-/* Contenedor que organiza las 6 cartas en filas y columnas */
+/* ============================================================
+GRILLA DE REGLAS (MENÚ PRINCIPAL)
+   ============================================================ */
 .reglas-grid {
     display: grid;
-    /* Creamos 3 columnas pero limitamos su tamaño (ej: entre 150px y 250px) */
     grid-template-columns: repeat(3, minmax(150px, 250px)); 
     gap: 20px;
-    margin: 30px auto; /* Centra la grilla horizontalmente */
-    justify-content: center; /* Centra las columnas si sobran espacio */
+    margin: 30px auto;
+    justify-content: center;
     width: 100%;
-    max-width: 850px; /* Limita el ancho total del grupo de 6 tarjetas */
+    max-width: 850px;
 }
 
-/* La carta individual de la regla */
 .card-regla {
     background: #1a1a1a; 
     border: 1px solid #333;
     border-top: 4px solid #00aaff;
     border-radius: 12px;
-    padding: 15px; /* Menos padding interno */
+    padding: 15px;
     text-align: center;
-    
-    aspect-ratio: 1 / 1; /* Mantiene el cuadrado */
-    
+    aspect-ratio: 1 / 1; 
     display: flex;
     flex-direction: column;
     justify-content: center; 
     align-items: center;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card-regla:hover {
@@ -212,37 +68,20 @@ CARTAS DE REGLAS GRAMATICALES
 .card-regla h3 {
     margin-bottom: 10px;
     color: #00aaff;
-    font-size: 1.05em; /* Fuente un poquito más chica para que no sature */
+    font-size: 1.05em;
     line-height: 1.2;
 }
 
-.card-regla p {
-    font-size: 0.85em;
-    color: #ddd;
-    line-height: 1.3;
-    margin-bottom: 8px;
-    display: none;
-}
-
-/* Estilo para el ejemplo o palabra clave dentro de la carta */
-.card-regla .palabra-clave {
-    font-size: 0.8em;
-    color: #00ffcc; /* Color turquesa, resalta el ejemplo */
-    font-weight: bold;
-    border-top: 1px solid #333;
-    padding-top: 8px;
-    display: none;
-}
-
 .card-regla button {
- padding: 6px 15px; /* Botón más estilizado */
+    padding: 8px 18px;
     font-size: 0.9em;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 6px;
     border: none;
     background: #fff;
     color: #000;
     font-weight: bold;
+    transition: 0.3s;
 }
 
 .card-regla button:hover {
@@ -250,66 +89,171 @@ CARTAS DE REGLAS GRAMATICALES
     color: #fff;
 }
 
-.btn-nav {
+/* ============================================================
+SECCIÓN DE ACTIVIDADES Y CARDS
+   ============================================================ */
+.actividad-card {
     background: #222;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+    margin: 15px auto;
+    width: 100%;
+    max-width: 700px;
+    text-align: left;
+    box-sizing: border-box;
+    transition: transform 0.2s;
+}
+
+.actividad-card:hover {
+    transform: scale(1.01);
+    box-shadow: 0 0 15px rgba(0,170,255,0.2);
+}
+
+.actividad-card h3 {
+    text-align: center;
+    margin-top: 0;
+    color: #00aaff;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+    font-size: 1.2em;
+}
+
+/* Inputs y Selects dentro de las actividades */
+.actividad-card input[type="text"],
+.actividad-card select {
+    width: 100%;
+    background: #1a1a1a;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 10px 0;
+    box-sizing: border-box;
+}
+
+.actividad-card button {
+    width: 100%;
+    padding: 10px;
+    background: #00aaff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+/* Título de nivel y puntaje */
+#nivelTitulo {
+    text-align: center;
+    color: #00aaff;
+    margin: 10px 0;
+    font-size: 1.6em;
+    text-transform: uppercase;
+}
+
+#puntaje {
+    text-align: center;
+    color: #00ffcc;
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+}
+
+/* ============================================================
+   BOTONES DE NAVEGACIÓN Y PAGINACIÓN
+   ============================================================ */
+.btn-volver-dinamico {
+    display: block;
+    margin: 0 auto 20px auto;
+    background: transparent;
     color: #00aaff;
     border: 1px solid #00aaff;
-    padding: 6px 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.btn-volver-dinamico:hover {
+    background: #00aaff;
+    color: #fff;
+}
+
+.paginacion-reglas {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 20px auto;
+}
+
+.paginacion-reglas button {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.paginacion-reglas button:hover:not(:disabled) {
+    background-color: #00aaff;
+}
+
+.paginacion-reglas button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   SISTEMA DE TOAST Y LOGOUT
+   ============================================================ */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: 0.3s;
+    z-index: 1000;
+    border-left: 4px solid #00aaff;
+}
+
+.logout-container-alumno {
+    text-align: center;
+    padding: 30px 0;
+}
+
+.btn-logout {
+    padding: 10px 25px;
+    background: crimson; 
+    color: white;
+    border: none;
     border-radius: 6px;
     cursor: pointer;
     font-weight: bold;
 }
 
-.btn-nav:hover:not(:disabled) {
-    background: #00aaff;
-    color: #fff;
+.btn-logout:hover {
+    background: darkred;
 }
 
-.btn-nav:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-    border-color: #444;
-    color: #444;
-}
-
-#info-pagina-regla {
-    font-weight: bold;
-    color: #ccc;
-    font-size: 0.9em;
-}
-
-.card-regla .card-btn {
-    width: 100%;
-}
-
-/* Estilos para el Título del Nivel seleccionado */
-#nivelTitulo {
-    text-align: center;
-    color: #00aaff;
-    margin: 5px 0;
-    font-size: 1.4em; /* Tamaño destacado */
-    text-transform: uppercase;
-}
-
-/* Estilos para el marcador de Puntaje */
-#puntaje {
-    text-align: center;
-    color: #00ffcc;
-    font-weight: bold;
-    font-size: 1.1em;
-    margin-bottom: 10px;
-    /* Efecto de brillo suave para que resalte */
-    text-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
-}
-
-/* Ajuste para que en celu sigan siendo de a 1 o 2 */
+/* ============================================================
+RESPONSIVE
+   ============================================================ */
 @media (max-width: 800px) {
-    .reglas-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .reglas-grid { grid-template-columns: repeat(2, 1fr); }
+    .main-title { font-size: 1.5em; }
 }
+
 @media (max-width: 500px) {
-    .reglas-grid {
-        grid-template-columns: 1fr;
-    }
+    .reglas-grid { grid-template-columns: 1fr; }
 }
